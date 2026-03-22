@@ -160,6 +160,16 @@ task run:admin-tools
 
 Admin tools URL: `http://localhost:8081/users`
 
+### Admin tools screenshots
+
+Users page:
+
+![Admin tools users page](docs/screenshots/admin-tools-users.png)
+
+Search example (`/users?q=Hurl`):
+
+![Admin tools users search page](docs/screenshots/admin-tools-users-search.png)
+
 ---
 
 ## Build
