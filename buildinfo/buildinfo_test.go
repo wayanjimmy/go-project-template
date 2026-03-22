@@ -12,12 +12,6 @@ func TestGet(t *testing.T) {
 	if info.Version == "" {
 		t.Error("Version should not be empty")
 	}
-	if info.Commit == "" {
-		t.Error("Commit should not be empty")
-	}
-	if info.BuildDate == "" {
-		t.Error("BuildDate should not be empty")
-	}
 	if info.Service == "" {
 		t.Error("Service should not be empty")
 	}
@@ -40,12 +34,6 @@ func TestGetDefaultValues(t *testing.T) {
 	if info.Version != "dev" {
 		t.Errorf("Version = %q, want %q", info.Version, "dev")
 	}
-	if info.Commit != "none" {
-		t.Errorf("Commit = %q, want %q", info.Commit, "none")
-	}
-	if info.BuildDate != "unknown" {
-		t.Errorf("BuildDate = %q, want %q", info.BuildDate, "unknown")
-	}
 	if info.Service != "unknown" {
 		t.Errorf("Service = %q, want %q", info.Service, "unknown")
 	}
@@ -58,7 +46,7 @@ func TestString(t *testing.T) {
 		t.Error("String() should not return empty string")
 	}
 
-	expectedFields := []string{"service=", "version=", "commit=", "built=", "go="}
+	expectedFields := []string{"service=", "version=", "go="}
 	for _, field := range expectedFields {
 		if !strings.Contains(s, field) {
 			t.Errorf("String() should contain %q", field)
