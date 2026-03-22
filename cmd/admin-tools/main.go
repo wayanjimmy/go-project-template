@@ -31,6 +31,9 @@ const rootTemplateHTML = `<!DOCTYPE html>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Tools</title>
+  {{ range viteCSS "cmd/admin-tools/resources/js/app.tsx" }}
+  <link rel="stylesheet" href="{{ . }}" />
+  {{ end }}
 </head>
 <body>
   <div id="app" data-page="{{ marshal .page }}"></div>

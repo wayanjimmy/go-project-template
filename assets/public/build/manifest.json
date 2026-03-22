@@ -1,8 +1,11 @@
 {
   "cmd/admin-tools/resources/js/app.tsx": {
-    "file": "assets/app-Bh3TKhyg.js",
+    "file": "assets/app-CXrUSM2T.js",
     "name": "app",
     "src": "cmd/admin-tools/resources/js/app.tsx",
-    "isEntry": true
+    "isEntry": true,
+    "css": [
+      "assets/app-DZQNds9d.css"
+    ]
   }
 }

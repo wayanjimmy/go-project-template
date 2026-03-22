@@ -40,25 +40,9 @@ func NewLoaderWithFS(path string, dev bool, fsys fs.FS) *Loader {
 }
 
 func (l *Loader) Asset(entry string) (string, error) {
-	var manifest *Manifest
-
-	if l.dev {
-		m, err := l.loadManifest()
-		if err != nil {
-			return "http://localhost:5173/" + entry, nil
-		}
-		manifest = m
-	} else {
-		if cached := l.cached.Load(); cached != nil {
-			manifest = cached.(*Manifest)
-		} else {
-			m, err := l.loadManifest()
-			if err != nil {
-				return "", err
-			}
-			l.cached.Store(m)
-			manifest = m
-		}
+	manifest, err := l.manifest()
+	if err != nil {
+		return "", err
 	}
 
 	resolved, err := manifest.Resolve(entry)
@@ -67,6 +51,45 @@ func (l *Loader) Asset(entry string) (string, error) {
 	}
 
 	return "/build/" + resolved, nil
+}
+
+func (l *Loader) CSSAssets(entry string) ([]string, error) {
+	manifest, err := l.manifest()
+	if err != nil {
+		return nil, err
+	}
+
+	css, err := manifest.CSS(entry)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]string, 0, len(css))
+	for _, file := range css {
+		result = append(result, "/build/"+file)
+	}
+	return result, nil
+}
+
+func (l *Loader) manifest() (*Manifest, error) {
+	if l.dev {
+		m, err := l.loadManifest()
+		if err != nil {
+			return nil, err
+		}
+		return m, nil
+	}
+
+	if cached := l.cached.Load(); cached != nil {
+		return cached.(*Manifest), nil
+	}
+
+	m, err := l.loadManifest()
+	if err != nil {
+		return nil, err
+	}
+	l.cached.Store(m)
+	return m, nil
 }
 
 func New() *Manifest {
@@ -119,18 +142,34 @@ func Parse(data []byte) (*Manifest, error) {
 }
 
 func (m *Manifest) Resolve(path string) (string, error) {
+	entry, err := m.entry(path)
+	if err != nil {
+		return "", err
+	}
+	return entry.File, nil
+}
+
+func (m *Manifest) CSS(path string) ([]string, error) {
+	entry, err := m.entry(path)
+	if err != nil {
+		return nil, err
+	}
+	return entry.CSS, nil
+}
+
+func (m *Manifest) entry(path string) (*ManifestEntry, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
 	if entry, ok := m.entries[path]; ok {
-		return entry.File, nil
+		return entry, nil
 	}
 
 	if len(path) > 0 {
 		if entry, ok := m.entries[path[1:]]; ok {
-			return entry.File, nil
+			return entry, nil
 		}
 	}
 
-	return "", fmt.Errorf("asset not found in manifest: %s", path)
+	return nil, fmt.Errorf("asset not found in manifest: %s", path)
 }

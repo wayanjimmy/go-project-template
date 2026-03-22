@@ -3,6 +3,7 @@ dist/
 /build/
 .vite/
 /public/
+/assets/public/build/
 *.log
 
 # Environment / local secrets

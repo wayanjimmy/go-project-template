@@ -47,9 +47,20 @@ func NewInertia(cfg InertiaConfig) *inertia.Inertia {
 	i.ShareFunc("viteAsset", func(entry string) string {
 		path, err := viteLoader.Asset(entry)
 		if err != nil {
+			if cfg.Dev {
+				return "http://localhost:5173/" + entry
+			}
 			return ""
 		}
 		return path
+	})
+
+	i.ShareFunc("viteCSS", func(entry string) []string {
+		paths, err := viteLoader.CSSAssets(entry)
+		if err != nil {
+			return nil
+		}
+		return paths
 	})
 
 	i.ShareFunc("marshal", func(v any) string {
