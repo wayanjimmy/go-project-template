@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"embed"
 	"fmt"
 	"io/fs"
 	"net/http"
 	"os"
+	"testing/fstest"
 
 	assets "go-project-template/assets"
 	"go-project-template/buildinfo"
@@ -25,8 +25,23 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-//go:embed resources
-var resourcesFS embed.FS
+const rootTemplateHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Tools</title>
+</head>
+<body>
+  <div id="app" data-page="{{ marshal .page }}"></div>
+  <script type="module" src="{{ viteAsset "cmd/admin-tools/resources/js/app.tsx" }}"></script>
+</body>
+</html>
+`
+
+var rootTemplateFS = fstest.MapFS{
+	"resources/views/app.gohtml": &fstest.MapFile{Data: []byte(rootTemplateHTML)},
+}
 
 func main() {
 	correlationIDFn := requestid.FromContext
@@ -109,7 +124,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 		RootTemplateDev: "cmd/admin-tools/resources/views/app.gohtml",
 		URL:             "http://localhost:" + cfg.ServerPort,
 		Version:         buildinfo.Version,
-		FS:              resourcesFS,
+		FS:              rootTemplateFS,
 		ManifestPath:    "public/build/manifest.json",
 		ManifestFS:      assets.PublicBuildFS,
 	})
