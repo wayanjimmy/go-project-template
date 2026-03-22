@@ -24,6 +24,8 @@ This template is strongly influenced by:
   https://github.com/benbjohnson/wtf
 - **GoTime / Changelog logger-debugger mindset**  
   https://changelog.com/gotime/309
+- **Bootstrap/environment patterns** (`serverenv`, `setup`, `key`)  
+  inspired by https://github.com/google/exposure-notifications-server
 
 The core principles from those notes are implemented directly in this project.
 
@@ -206,3 +208,4 @@ test/hurl/      # plain-text API tests
 - Peter Bourgon — Go for Industrial Programming: https://peter.bourgon.org/go-for-industrial-programming/
 - Ben Johnson — wtf (package/layering inspiration): https://github.com/benbjohnson/wtf
 - GoTime / Changelog ep. 309: https://changelog.com/gotime/309
+- Google — exposure-notifications-server (bootstrap/env inspiration for `serverenv`, `setup`, `key`): https://github.com/google/exposure-notifications-server
