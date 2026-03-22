@@ -14,7 +14,6 @@ func BuildInfo(ctx context.Context, log *Logger) {
 	log.Info(ctx, "build info",
 		"commit", info.Commit,
 		"build_date", info.BuildDate,
-		"image_tag", info.ImageTag,
 		"go_version", info.GoVersion,
 		"platform", info.Platform,
 	)

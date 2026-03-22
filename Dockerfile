@@ -21,19 +21,14 @@ COPY . .
 COPY --from=frontend-builder /src/assets/public/build ./assets/public/build
 
 ARG VERSION=dev
-ARG COMMIT=none
-ARG BUILD_DATE=unknown
-ARG IMAGE_TAG=dev
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 
 RUN mkdir -p /out && \
-    for service in admin-tools elasticcli server worker; do \
-      CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-      go build -trimpath \
-        -ldflags "-s -w -X 'go-project-template/buildinfo.Version=${VERSION}' -X 'go-project-template/buildinfo.Commit=${COMMIT}' -X 'go-project-template/buildinfo.BuildDate=${BUILD_DATE}' -X 'go-project-template/buildinfo.ImageTag=${IMAGE_TAG}' -X 'go-project-template/buildinfo.Service=${service}'" \
-        -o "/out/${service}" "./cmd/${service}"; \
-    done
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -trimpath \
+      -ldflags "-s -w -X 'go-project-template/buildinfo.Version=${VERSION}'" \
+      -o /out/ ./cmd/...
 
 # ---------- Runtime image (single image with all binaries, distroless non-root) ----------
 FROM gcr.io/distroless/static-debian12:nonroot

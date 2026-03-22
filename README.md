@@ -176,10 +176,28 @@ Search example (`/users?q=Hurl`):
 
 ## Build
 
-Build all binaries with injected build metadata:
+Build all binaries with injected version metadata (single `VERSION` value):
+
+### Versioning convention
+
+Use one deploy identifier in this format:
+
+`<branch>-<commit>-<timestamp>`
+
+Example:
+
+`main-ffa869b-20260316133451`
+
+This single value is used as the application version in build metadata and container builds.
 
 ```bash
 task build
+```
+
+You can override `VERSION` (example format: `<branch>-<commit>-<timestamp>`):
+
+```bash
+VERSION=main-ffa869b-20260316133451 task build
 ```
 
 Output binaries are written to `./bin/`.
@@ -192,10 +210,13 @@ This project ships a single multi-stage `Dockerfile` that:
 - builds Go binaries into one image
 - uses a distroless non-root runtime image
 
-Build image (Docker-compatible format):
+Build image (Docker-compatible format, single `VERSION` build arg):
 
 ```bash
-podman build --format=docker -t localhost/go-project-template:latest -f Dockerfile .
+podman build --format=docker \
+  --build-arg VERSION=main-ffa869b-20260316133451 \
+  -t localhost/go-project-template:latest \
+  -f Dockerfile .
 ```
 
 #### Run `cmd/server`

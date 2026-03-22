@@ -10,21 +10,15 @@ tasks:
     silent: true
 
   build:
-    desc: Build binaries with injected build metadata (ldflags)
+    desc: Build binaries with injected version metadata (single VERSION)
     deps: [ui:build]
     vars:
       VERSION:
         sh: git describe --tags --always --dirty 2>/dev/null || echo dev
-      COMMIT:
-        sh: git rev-parse --short HEAD 2>/dev/null || echo none
-      BUILD_DATE:
-        sh: date -u +%Y-%m-%dT%H:%M:%SZ
-      IMAGE_TAG: '{{default .VERSION .IMAGE_TAG}}'
-      SERVICE: '{{default "unknown" .SERVICE}}'
     cmds:
       - >-
         go build -trimpath
-        -ldflags "-X 'go-project-template/buildinfo.Version={{.VERSION}}' -X 'go-project-template/buildinfo.Commit={{.COMMIT}}' -X 'go-project-template/buildinfo.BuildDate={{.BUILD_DATE}}' -X 'go-project-template/buildinfo.ImageTag={{.IMAGE_TAG}}' -X 'go-project-template/buildinfo.Service={{.SERVICE}}'"
+        -ldflags "-X 'go-project-template/buildinfo.Version={{.VERSION}}'"
         -o ./bin/
         ./cmd/...
 

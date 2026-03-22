@@ -18,9 +18,6 @@ func TestGet(t *testing.T) {
 	if info.BuildDate == "" {
 		t.Error("BuildDate should not be empty")
 	}
-	if info.ImageTag == "" {
-		t.Error("ImageTag should not be empty")
-	}
 	if info.Service == "" {
 		t.Error("Service should not be empty")
 	}
@@ -49,9 +46,6 @@ func TestGetDefaultValues(t *testing.T) {
 	if info.BuildDate != "unknown" {
 		t.Errorf("BuildDate = %q, want %q", info.BuildDate, "unknown")
 	}
-	if info.ImageTag != "local" {
-		t.Errorf("ImageTag = %q, want %q", info.ImageTag, "local")
-	}
 	if info.Service != "unknown" {
 		t.Errorf("Service = %q, want %q", info.Service, "unknown")
 	}
@@ -64,7 +58,7 @@ func TestString(t *testing.T) {
 		t.Error("String() should not return empty string")
 	}
 
-	expectedFields := []string{"service=", "version=", "commit=", "built=", "image=", "go="}
+	expectedFields := []string{"service=", "version=", "commit=", "built=", "go="}
 	for _, field := range expectedFields {
 		if !strings.Contains(s, field) {
 			t.Errorf("String() should contain %q", field)
