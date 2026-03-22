@@ -17,3 +17,11 @@
 - When building Docker-compatible images, always pass `--format=docker`.
 - Preferred build command:
   - `podman build --format=docker -t <image>:<tag> -f Dockerfile .`
+
+## Container runtime notes
+
+- Runtime image is distroless + non-root. Avoid writing under `/app` at runtime.
+- For `cmd/admin-tools` in containers, set a writable secret root:
+  - `SECRET_ROOT=/tmp/.secrets`
+- If `SECRET_ROOT` is not writable, startup can fail with:
+  - `failed to create key root: mkdir .secrets: permission denied`
