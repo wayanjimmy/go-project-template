@@ -4,5 +4,15 @@ dist/
 .vite/
 /public/
 *.log
+
+# Environment / local secrets
 .env
 .env.*
+.envrc
+.secrets/
+
+# Local binaries
+bin/server
+bin/worker
+bin/admin-tools
+bin/elasticcli
