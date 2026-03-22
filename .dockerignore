@@ -1,0 +1,21 @@
+# VCS
+.git
+.gitignore
+
+# Local dependencies/artifacts
+node_modules
+bin
+
+# Env/secrets
+.env
+.env.*
+.envrc
+.secrets
+
+# Logs/temp
+*.log
+tmp
+
+# Docs and local agent metadata (not needed for image build)
+docs
+.agents

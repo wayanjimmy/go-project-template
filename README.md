@@ -184,6 +184,46 @@ task build
 
 Output binaries are written to `./bin/`.
 
+### Build and run container image (Podman)
+
+This project ships a single multi-stage `Dockerfile` that:
+
+- builds frontend assets for `cmd/admin-tools`
+- builds Go binaries into one image
+- uses a distroless non-root runtime image
+
+Build image (Docker-compatible format):
+
+```bash
+podman build --format=docker -t localhost/go-project-template:latest -f Dockerfile .
+```
+
+#### Run `cmd/server`
+
+```bash
+podman run --rm \
+  -p 3030:3030 \
+  -e DATABASE_URL="postgres://app:app@host.containers.internal:5432/app_db?sslmode=disable" \
+  localhost/go-project-template:latest
+```
+
+API URL: `http://localhost:3030`
+
+#### Run `cmd/admin-tools`
+
+Use the same image, but override entrypoint to the admin-tools binary:
+
+```bash
+podman run --rm \
+  --entrypoint /app/bin/admin-tools \
+  -p 8081:8081 \
+  -e DATABASE_URL="postgres://app:app@host.containers.internal:5432/app_db?sslmode=disable" \
+  -e APP_ENV=production \
+  localhost/go-project-template:latest
+```
+
+Admin tools URL: `http://localhost:8081/users`
+
 ---
 
 ## Repository structure (high-level)
