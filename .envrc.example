@@ -1,0 +1,2 @@
+export DOCKER_HOST=unix:///run/user/1000/podman/podman.sock
+export DATABASE_URL=postgres://app:app@localhost:5432/app_db?sslmode=disable

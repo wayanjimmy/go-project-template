@@ -1,0 +1,4 @@
+- user_id: user-1
+  name: Alice
+  email: alice@example.com
+  document: "'alic':1 'alice@example.com':2"

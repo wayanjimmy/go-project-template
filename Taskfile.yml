@@ -1,0 +1,99 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list-all
+    silent: true
+
+  build:
+    desc: Build binaries with injected build metadata (ldflags)
+    deps: [ui:build]
+    vars:
+      VERSION:
+        sh: git describe --tags --always --dirty 2>/dev/null || echo dev
+      COMMIT:
+        sh: git rev-parse --short HEAD 2>/dev/null || echo none
+      BUILD_DATE:
+        sh: date -u +%Y-%m-%dT%H:%M:%SZ
+      IMAGE_TAG: '{{default .VERSION .IMAGE_TAG}}'
+      SERVICE: '{{default "unknown" .SERVICE}}'
+    cmds:
+      - >-
+        go build -trimpath
+        -ldflags "-X 'go-project-template/buildinfo.Version={{.VERSION}}' -X 'go-project-template/buildinfo.Commit={{.COMMIT}}' -X 'go-project-template/buildinfo.BuildDate={{.BUILD_DATE}}' -X 'go-project-template/buildinfo.ImageTag={{.IMAGE_TAG}}' -X 'go-project-template/buildinfo.Service={{.SERVICE}}'"
+        -o ./bin/
+        ./cmd/...
+
+  test:
+    desc: Run all Go tests
+    cmds:
+      - go test ./...
+
+  test:http:
+    desc: Run HTTP API tests with Hurl (expects server running and hurl installed)
+    cmds:
+      - ./test/hurl/run-test.sh
+
+  run:
+    desc: Run server
+    cmds:
+      - go run ./cmd/server
+
+  run:worker:
+    desc: Run worker mode
+    cmds:
+      - go run ./cmd/worker
+
+  run:admin-tools:
+    desc: Run admin tools Inertia web UI (default :8081)
+    deps: [ui:build]
+    cmds:
+      - go run ./cmd/admin-tools
+
+  ui:install:
+    desc: Install frontend dependencies via Vite+ (vp)
+    cmds:
+      - vp install
+
+  ui:build:
+    desc: Build admin-tools frontend assets to assets/public/build via Vite+
+    cmds:
+      - vp build
+
+  ui:dev:
+    desc: Start Vite+ dev server for admin-tools frontend (port 5173)
+    cmds:
+      - vp dev
+
+  test:admin-tools:
+    desc: Quick admin-tools smoke test (expects admin-tools running on :8081)
+    deps: [ui:build]
+    cmds:
+      - curl -fsS "http://localhost:${ADMIN_TOOLS_PORT:-8081}/users" >/dev/null
+      - curl -fsS "http://localhost:${ADMIN_TOOLS_PORT:-8081}/users?q=test" >/dev/null
+
+  migrate:up:
+    desc: Apply all pending DB migrations using DATABASE_URL from .envrc
+    cmds:
+      - bash -lc 'source .envrc && dbmate --url "$DATABASE_URL" --migrations-dir ./database/migrations up'
+
+  migrate:down:
+    desc: Roll back the last DB migration using DATABASE_URL from .envrc
+    cmds:
+      - bash -lc 'source .envrc && dbmate --url "$DATABASE_URL" --migrations-dir ./database/migrations down'
+
+  migrate:status:
+    desc: Show DB migration status using DATABASE_URL from .envrc
+    cmds:
+      - bash -lc 'source .envrc && dbmate --url "$DATABASE_URL" --migrations-dir ./database/migrations status'
+
+  migrate:new:
+    desc: "Create a new migration file (usage: task migrate:new NAME=create_table_x)"
+    requires:
+      vars: [NAME]
+    cmds:
+      - bash -lc 'source .envrc && dbmate --url "$DATABASE_URL" --migrations-dir ./database/migrations new {{.NAME}}'

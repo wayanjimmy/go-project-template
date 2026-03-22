@@ -1,0 +1,8 @@
+node_modules/
+dist/
+/build/
+.vite/
+/public/
+*.log
+.env
+.env.*
