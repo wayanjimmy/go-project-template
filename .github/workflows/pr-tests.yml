@@ -1,0 +1,39 @@
+name: PR Tests
+
+on:
+  pull_request:
+    branches:
+      - "**"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup Task
+        uses: arduino/setup-task@v2
+
+      - name: Verify Task setup
+        run: task --version
+
+      - name: Prepare embedded frontend assets path for CI
+        run: |
+          mkdir -p assets/public/build/assets
+          : > assets/public/build/manifest.json
+
+      - name: Run tests via Taskfile
+        run: |
+          task test
+          task test:integration

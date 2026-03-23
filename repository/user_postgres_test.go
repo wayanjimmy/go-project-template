@@ -3,11 +3,9 @@ package repository
 import (
 	"context"
 	"fmt"
-	"go-project-template/config"
-	"go-project-template/database/sqldb"
 	"go-project-template/entity"
 	"go-project-template/logger"
-	"os"
+	"go-project-template/test/testutil"
 	"testing"
 
 	"github.com/google/uuid"
@@ -31,57 +29,75 @@ func (m *mockEncryptor) Decrypt(ctx context.Context, ciphertext []byte, aad []by
 }
 
 func TestPostgresUserRepository_List(t *testing.T) {
-	dbURL := os.Getenv("DATABASE_URL")
-	if dbURL == "" {
-		t.Skip("DATABASE_URL not set")
-	}
+	ctx, db := testutil.OpenMigratedDB(t, logger.Noop())
+	repo := NewPostgresUserRepository(db, &mockEncryptor{}, logger.Noop())
 
-	ctx := context.Background()
-	log := logger.Noop()
+	t.Run("list from users_existing fixture", func(t *testing.T) {
+		testutil.LoadFixtures(t, db.SQL(), "users_existing")
 
-	require.NoError(t, sqldb.RunMigrations(dbURL))
-
-	cfg := &config.Config{DatabaseURL: dbURL}
-	db, err := sqldb.Open(cfg, log)
-	require.NoError(t, err)
-	defer db.Close(ctx)
-
-	encryptor := &mockEncryptor{}
-	repo := NewPostgresUserRepository(db, encryptor, log)
-
-	// Clean up
-	_, err = db.SQL().Exec("DELETE FROM users")
-	require.NoError(t, err)
-
-	// Seed users
-	for i := 0; i < 5; i++ {
-		user := &entity.User{
-			ID:      uuid.New().String(),
-			Name:    fmt.Sprintf("User %d", i),
-			Email:   fmt.Sprintf("user%d@example.com", i),
-			Address: fmt.Sprintf("Address %d", i),
-		}
-		err := repo.Save(ctx, user)
+		users, err := repo.List(ctx, 10, 0)
 		require.NoError(t, err)
-	}
-
-	t.Run("list with pagination", func(t *testing.T) {
-		users, err := repo.List(ctx, 2, 0)
-		require.NoError(t, err)
-		assert.Len(t, users, 2)
+		require.Len(t, users, 1)
+		assert.Equal(t, "user-1", users[0].ID)
+		assert.Equal(t, "Alice", users[0].Name)
+		assert.Equal(t, "alice@example.com", users[0].Email)
 	})
 
-	t.Run("list with offset", func(t *testing.T) {
-		users, err := repo.List(ctx, 10, 4)
+	t.Run("list from users_empty fixture", func(t *testing.T) {
+		testutil.LoadFixtures(t, db.SQL(), "users_empty")
+
+		users, err := repo.List(ctx, 10, 0)
 		require.NoError(t, err)
-		assert.Len(t, users, 1)
+		assert.Len(t, users, 0)
 	})
 
 	t.Run("list with decryption error", func(t *testing.T) {
-		failRepo := NewPostgresUserRepository(db, &mockEncryptor{decryptErr: fmt.Errorf("fail")}, log)
+		testutil.LoadFixtures(t, db.SQL(), "users_existing")
+		failRepo := NewPostgresUserRepository(db, &mockEncryptor{decryptErr: fmt.Errorf("fail")}, logger.Noop())
+
 		users, err := failRepo.List(ctx, 10, 0)
 		require.NoError(t, err)
-		assert.Len(t, users, 5)
+		require.Len(t, users, 1)
 		assert.Equal(t, "<error decrypting>", users[0].Address)
+	})
+}
+
+func TestPostgresUserRepository_FindSaveDelete(t *testing.T) {
+	ctx, db := testutil.OpenMigratedDB(t, logger.Noop())
+	repo := NewPostgresUserRepository(db, &mockEncryptor{}, logger.Noop())
+
+	t.Run("find by id from fixtures", func(t *testing.T) {
+		testutil.LoadFixtures(t, db.SQL(), "users_existing")
+
+		user, err := repo.FindByID(ctx, "user-1")
+		require.NoError(t, err)
+		assert.Equal(t, "user-1", user.ID)
+		assert.Equal(t, "Alice", user.Name)
+		assert.Equal(t, "alice@example.com", user.Email)
+	})
+
+	t.Run("save then find then delete", func(t *testing.T) {
+		testutil.LoadFixtures(t, db.SQL(), "users_empty")
+
+		id := uuid.NewString()
+		err := repo.Save(ctx, &entity.User{
+			ID:      id,
+			Name:    "Bob",
+			Email:   "bob@example.com",
+			Address: "Jakarta",
+		})
+		require.NoError(t, err)
+
+		saved, err := repo.FindByID(ctx, id)
+		require.NoError(t, err)
+		assert.Equal(t, "Bob", saved.Name)
+		assert.Equal(t, "bob@example.com", saved.Email)
+		assert.Equal(t, "Jakarta", saved.Address)
+
+		err = repo.Delete(ctx, id)
+		require.NoError(t, err)
+
+		_, err = repo.FindByID(ctx, id)
+		require.Error(t, err)
 	})
 }
