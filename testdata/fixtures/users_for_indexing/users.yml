@@ -1,0 +1,4 @@
+- id: user-2
+  name: Charlie
+  email: charlie@example.com
+  address_encrypted: "\x61646472"
