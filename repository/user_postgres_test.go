@@ -33,7 +33,7 @@ func TestPostgresUserRepository_List(t *testing.T) {
 	repo := NewPostgresUserRepository(db, &mockEncryptor{}, logger.Noop())
 
 	t.Run("list from users_existing fixture", func(t *testing.T) {
-		testutil.LoadFixtures(t, db.SQL(), "users_existing")
+		testutil.LoadFixtures(t, db.SQL().DB, "users_existing")
 
 		users, err := repo.List(ctx, 10, 0)
 		require.NoError(t, err)
@@ -44,7 +44,7 @@ func TestPostgresUserRepository_List(t *testing.T) {
 	})
 
 	t.Run("list from users_empty fixture", func(t *testing.T) {
-		testutil.LoadFixtures(t, db.SQL(), "users_empty")
+		testutil.LoadFixtures(t, db.SQL().DB, "users_empty")
 
 		users, err := repo.List(ctx, 10, 0)
 		require.NoError(t, err)
@@ -52,7 +52,7 @@ func TestPostgresUserRepository_List(t *testing.T) {
 	})
 
 	t.Run("list with decryption error", func(t *testing.T) {
-		testutil.LoadFixtures(t, db.SQL(), "users_existing")
+		testutil.LoadFixtures(t, db.SQL().DB, "users_existing")
 		failRepo := NewPostgresUserRepository(db, &mockEncryptor{decryptErr: fmt.Errorf("fail")}, logger.Noop())
 
 		users, err := failRepo.List(ctx, 10, 0)
@@ -67,7 +67,7 @@ func TestPostgresUserRepository_FindSaveDelete(t *testing.T) {
 	repo := NewPostgresUserRepository(db, &mockEncryptor{}, logger.Noop())
 
 	t.Run("find by id from fixtures", func(t *testing.T) {
-		testutil.LoadFixtures(t, db.SQL(), "users_existing")
+		testutil.LoadFixtures(t, db.SQL().DB, "users_existing")
 
 		user, err := repo.FindByID(ctx, "user-1")
 		require.NoError(t, err)
@@ -77,7 +77,7 @@ func TestPostgresUserRepository_FindSaveDelete(t *testing.T) {
 	})
 
 	t.Run("save then find then delete", func(t *testing.T) {
-		testutil.LoadFixtures(t, db.SQL(), "users_empty")
+		testutil.LoadFixtures(t, db.SQL().DB, "users_empty")
 
 		id := uuid.NewString()
 		err := repo.Save(ctx, &entity.User{

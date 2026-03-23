@@ -9,12 +9,14 @@ import (
 	"go-project-template/entity"
 	"go-project-template/logger"
 	"go-project-template/service"
+	"go-project-template/transaction"
 
 	sq "github.com/Masterminds/squirrel"
+	"github.com/jmoiron/sqlx"
 )
 
 type PostgresUserRepository struct {
-	db        *sqldb.DB
+	exec      sqlx.ExtContext
 	sb        sq.StatementBuilderType
 	encryptor Encryptor
 	log       *logger.Logger
@@ -28,11 +30,24 @@ func NewPostgresUserRepository(db *sqldb.DB, encryptor Encryptor, log *logger.Lo
 	}
 
 	return &PostgresUserRepository{
-		db:        db,
+		exec:      db.SQL(),
 		sb:        sq.StatementBuilder.PlaceholderFormat(sq.Dollar),
 		encryptor: encryptor,
 		log:       log,
 	}
+}
+
+func (r *PostgresUserRepository) ExecuteUnderTransaction(tx transaction.Transaction) (service.UserRepository, error) {
+	exec, err := sqldb.GetExtContext(tx)
+	if err != nil {
+		return nil, err
+	}
+	return &PostgresUserRepository{
+		exec:      exec,
+		sb:        r.sb,
+		encryptor: r.encryptor,
+		log:       r.log,
+	}, nil
 }
 
 func (r *PostgresUserRepository) FindByID(ctx context.Context, id string) (*entity.User, error) {
@@ -46,7 +61,7 @@ func (r *PostgresUserRepository) FindByID(ctx context.Context, id string) (*enti
 		return nil, fmt.Errorf("build find user query failed: %w", err)
 	}
 
-	row := r.db.SQL().QueryRowContext(ctx, query, args...)
+	row := r.exec.QueryRowxContext(ctx, query, args...)
 
 	var user entity.User
 	var encryptedAddress []byte
@@ -88,7 +103,7 @@ func (r *PostgresUserRepository) Save(ctx context.Context, user *entity.User) er
 		return fmt.Errorf("build save user query failed: %w", err)
 	}
 
-	if _, err := r.db.SQL().ExecContext(ctx, query, args...); err != nil {
+	if _, err := r.exec.ExecContext(ctx, query, args...); err != nil {
 		return fmt.Errorf("save user failed: %w", err)
 	}
 
@@ -116,7 +131,7 @@ func (r *PostgresUserRepository) List(ctx context.Context, limit, offset int) ([
 		return nil, fmt.Errorf("build list users query failed: %w", err)
 	}
 
-	rows, err := r.db.SQL().QueryContext(ctx, query, args...)
+	rows, err := r.exec.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list users failed: %w", err)
 	}
@@ -157,7 +172,7 @@ func (r *PostgresUserRepository) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("build delete user query failed: %w", err)
 	}
 
-	if _, err := r.db.SQL().ExecContext(ctx, query, args...); err != nil {
+	if _, err := r.exec.ExecContext(ctx, query, args...); err != nil {
 		return fmt.Errorf("delete user failed: %w", err)
 	}
 	return nil

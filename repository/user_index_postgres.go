@@ -7,11 +7,13 @@ import (
 	"go-project-template/entity"
 	"go-project-template/logger"
 	"go-project-template/service"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type PostgresUserSearchRepository struct {
-	db  *sqldb.DB
-	log *logger.Logger
+	exec sqlx.ExtContext
+	log  *logger.Logger
 }
 
 var _ service.UserIndexer = (*PostgresUserSearchRepository)(nil)
@@ -22,7 +24,7 @@ func NewPostgresUserSearchRepository(db *sqldb.DB, log *logger.Logger) *Postgres
 		log = logger.Noop()
 	}
 
-	return &PostgresUserSearchRepository{db: db, log: log}
+	return &PostgresUserSearchRepository{exec: db.SQL(), log: log}
 }
 
 func (r *PostgresUserSearchRepository) Index(ctx context.Context, doc service.UserSearchDocument) error {
@@ -37,7 +39,7 @@ func (r *PostgresUserSearchRepository) Index(ctx context.Context, doc service.Us
 			document = EXCLUDED.document,
 			updated_at = NOW()
 	`
-	if _, err := r.db.SQL().ExecContext(ctx, query, doc.UserID, doc.Name, doc.Email, doc.Document); err != nil {
+	if _, err := r.exec.ExecContext(ctx, query, doc.UserID, doc.Name, doc.Email, doc.Document); err != nil {
 		return fmt.Errorf("index user document failed: %w", err)
 	}
 	return nil
@@ -45,7 +47,7 @@ func (r *PostgresUserSearchRepository) Index(ctx context.Context, doc service.Us
 
 func (r *PostgresUserSearchRepository) DeleteIndex(ctx context.Context, userID string) error {
 	r.log.Info(ctx, "repository.user_search.delete", "user_id", userID)
-	if _, err := r.db.SQL().ExecContext(ctx, `DELETE FROM user_search_index WHERE user_id = $1`, userID); err != nil {
+	if _, err := r.exec.ExecContext(ctx, `DELETE FROM user_search_index WHERE user_id = $1`, userID); err != nil {
 		return fmt.Errorf("delete user index failed: %w", err)
 	}
 	return nil
@@ -65,7 +67,7 @@ func (r *PostgresUserSearchRepository) Search(ctx context.Context, query string,
 		LIMIT $2
 	`
 
-	rows, err := r.db.SQL().QueryContext(ctx, sqlQuery, query, limit)
+	rows, err := r.exec.QueryContext(ctx, sqlQuery, query, limit)
 	if err != nil {
 		return nil, fmt.Errorf("search users failed: %w", err)
 	}

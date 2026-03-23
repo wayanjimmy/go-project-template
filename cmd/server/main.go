@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go-project-template/buildinfo"
 	"go-project-template/config"
+	"go-project-template/database/sqldb"
 	"go-project-template/logger"
 	"go-project-template/publisher"
 	"go-project-template/repository"
@@ -73,6 +74,7 @@ func runServer(ctx context.Context, log *logger.Logger) error {
 	}
 
 	repos := repository.NewPostgresRepositories(db, encryptor, log)
+	beginner := sqldb.NewBeginner(db)
 
 	watermillLogger := logger.NewWatermillAdapter(log)
 	pubSub := gochannel.NewGoChannel(gochannel.Config{}, watermillLogger)
@@ -83,7 +85,7 @@ func runServer(ctx context.Context, log *logger.Logger) error {
 	}
 	eventPub := publisher.NewWatermillPublisher(decoratedPub)
 
-	userService := service.NewUserService(repos.UserRepo, eventPub, log)
+	userService := service.NewUserService(repos.UserRepo, beginner, eventPub, log)
 	searchService := service.NewSearchService(repos.UserSearcher)
 
 	watermillRouter, err := worker.NewRouter(pubSub, repos.UserIndexer, watermillLogger)

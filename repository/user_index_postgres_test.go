@@ -15,7 +15,7 @@ func TestPostgresUserSearchRepository_SearchIndexDelete(t *testing.T) {
 	repo := NewPostgresUserSearchRepository(db, logger.Noop())
 
 	t.Run("search from existing fixture", func(t *testing.T) {
-		testutil.LoadFixtures(t, db.SQL(), "users_existing")
+		testutil.LoadFixtures(t, db.SQL().DB, "users_existing")
 
 		items, err := repo.Search(ctx, "alice", 10)
 		require.NoError(t, err)
@@ -26,7 +26,7 @@ func TestPostgresUserSearchRepository_SearchIndexDelete(t *testing.T) {
 	})
 
 	t.Run("index then search", func(t *testing.T) {
-		testutil.LoadFixtures(t, db.SQL(), "users_for_indexing")
+		testutil.LoadFixtures(t, db.SQL().DB, "users_for_indexing")
 
 		err := repo.Index(ctx, service.UserSearchDocument{
 			UserID:   "user-2",
@@ -43,7 +43,7 @@ func TestPostgresUserSearchRepository_SearchIndexDelete(t *testing.T) {
 	})
 
 	t.Run("delete index", func(t *testing.T) {
-		testutil.LoadFixtures(t, db.SQL(), "users_existing")
+		testutil.LoadFixtures(t, db.SQL().DB, "users_existing")
 
 		err := repo.DeleteIndex(ctx, "user-1")
 		require.NoError(t, err)

@@ -2,7 +2,6 @@ package sqldb
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"go-project-template/config"
 	"go-project-template/database/migrations"
@@ -11,17 +10,18 @@ import (
 
 	"github.com/amacneil/dbmate/v2/pkg/dbmate"
 	_ "github.com/amacneil/dbmate/v2/pkg/driver/postgres"
+	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
 type DB struct {
-	db   *sql.DB
+	db   *sqlx.DB
 	conf *config.Config
 	log  *logger.Logger
 }
 
 func Open(config *config.Config, log *logger.Logger) (*DB, error) {
-	db, err := sql.Open("postgres", config.DatabaseURL)
+	db, err := sqlx.Open("postgres", config.DatabaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("open postgres connection failed: %w", err)
 	}
@@ -52,7 +52,7 @@ func RunMigrations(dbURL string) error {
 	return m.Migrate()
 }
 
-func (d *DB) SQL() *sql.DB {
+func (d *DB) SQL() *sqlx.DB {
 	if d == nil {
 		return nil
 	}
