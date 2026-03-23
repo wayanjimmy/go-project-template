@@ -28,6 +28,11 @@ jobs:
       - name: Verify Task setup
         run: task --version
 
+      - name: Prepare embedded frontend assets path for CI
+        run: |
+          mkdir -p assets/public/build/assets
+          : > assets/public/build/manifest.json
+
       - name: Run tests via Taskfile
         run: |
           task test
