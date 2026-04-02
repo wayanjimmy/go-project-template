@@ -40,6 +40,7 @@ type userResponse struct {
 	Name    string `json:"name"`
 	Email   string `json:"email"`
 	Address string `json:"address"`
+	Status  string `json:"status"`
 }
 
 func toUserResponse(user *entity.User) userResponse {
@@ -48,6 +49,7 @@ func toUserResponse(user *entity.User) userResponse {
 		Name:    user.Name,
 		Email:   user.Email,
 		Address: user.Address,
+		Status:  user.Status,
 	}
 }
 

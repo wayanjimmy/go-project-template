@@ -46,7 +46,7 @@ func NewUserService(repo UserRepository, beginner transaction.Beginner, publishe
 func (s *userService) Create(ctx context.Context, name, email, address string) (*entity.User, error) {
 	s.log.Info(ctx, "service.user.create")
 	id := uuid.NewString()
-	user := &entity.User{ID: id, Name: name, Email: email, Address: address}
+	user := &entity.User{ID: id, Name: name, Email: email, Address: address, Status: UserStatusActive}
 
 	if err := s.repo.Save(ctx, user); err != nil {
 		return nil, fmt.Errorf("create user failed: %w", err)
@@ -58,24 +58,30 @@ func (s *userService) Create(ctx context.Context, name, email, address string) (
 
 func (s *userService) Update(ctx context.Context, id, name, email, address string) (*entity.User, error) {
 	s.log.Info(ctx, "service.user.update", "user_id", id)
-	user := &entity.User{ID: id, Name: name, Email: email, Address: address}
-
 	err := transaction.ExecuteUnderTransaction(ctx, s.beginner, s.log, func(tx transaction.Transaction) error {
 		txRepo, err := s.repo.ExecuteUnderTransaction(tx)
 		if err != nil {
 			return err
 		}
-		if _, err := txRepo.FindByID(ctx, id); err != nil {
+		existing, err := txRepo.FindByID(ctx, id)
+		if err != nil {
 			return fmt.Errorf("find user failed: %w", err)
 		}
+
+		user := &entity.User{ID: id, Name: name, Email: email, Address: address, Status: existing.Status}
 		return txRepo.Save(ctx, user)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("update user failed: %w", err)
 	}
 
-	s.publishUserEvent(ctx, event.UserUpdated, user)
-	return user, nil
+	updated, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("find updated user failed: %w", err)
+	}
+
+	s.publishUserEvent(ctx, event.UserUpdated, updated)
+	return updated, nil
 }
 
 func (s *userService) Delete(ctx context.Context, id string) error {

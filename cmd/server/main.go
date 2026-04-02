@@ -11,6 +11,7 @@ import (
 	"go-project-template/publisher"
 	"go-project-template/repository"
 	"go-project-template/requestid"
+	v1 "go-project-template/rest/v1"
 	"go-project-template/server"
 	"go-project-template/service"
 	"go-project-template/setup"
@@ -22,6 +23,8 @@ import (
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
+	workflowclient "github.com/cschleiden/go-workflows/client"
+	"github.com/cschleiden/go-workflows/diag"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -47,9 +50,7 @@ func runServer(ctx context.Context, log *logger.Logger) error {
 
 	cfg := &config.Config{
 		DatabaseURL: os.Getenv("DATABASE_URL"),
-
-		RedisAddr:  os.Getenv("REDIS_ADDR"),
-		ServerPort: envOrDefault("SERVER_PORT", "3030"),
+		ServerPort:  envOrDefault("SERVER_PORT", "3030"),
 
 		SecretType:             envOrDefault("SECRET_DRIVER", "FILESYSTEM"),
 		SecretRoot:             envOrDefault("SECRET_ROOT", ".secrets"),
@@ -93,7 +94,27 @@ func runServer(ctx context.Context, log *logger.Logger) error {
 		return fmt.Errorf("failed to create worker router: %w", err)
 	}
 
-	r := server.SetupRouter(userService, searchService, log)
+	wb := env.WorkflowBackend()
+	if wb == nil {
+		return errors.New("workflow backend not configured")
+	}
+
+	wfClient := workflowclient.New(wb)
+	onboardingService := service.NewUserOnboardingService(wfClient)
+	onboardingHandler := v1.NewUserOnboardingHandler(onboardingService)
+
+	dbDiag, ok := wb.(diag.Backend)
+	if !ok {
+		return errors.New("workflow backend does not support diagnostics")
+	}
+
+	r := server.SetupRouter(
+		userService,
+		searchService,
+		log,
+		server.WithUserOnboardingHandler(onboardingHandler),
+		server.WithWorkflowDiagnostics(diag.NewServeMux(dbDiag)),
+	)
 
 	api := &http.Server{Addr: ":" + cfg.ServerPort, Handler: r}
 

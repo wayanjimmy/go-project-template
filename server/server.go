@@ -8,7 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-func SetupRouter(userService service.UserService, searchService service.SearchService, log *logger.Logger) *chi.Mux {
+func SetupRouter(userService service.UserService, searchService service.SearchService, log *logger.Logger, opts ...Option) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(requestIDMiddleware)
 
@@ -23,6 +23,8 @@ func SetupRouter(userService service.UserService, searchService service.SearchSe
 
 		r.Get("/search/users", searchHandler.Users)
 	})
+
+	mountOptionalRoutes(r, applyOptions(opts...))
 
 	return r
 }

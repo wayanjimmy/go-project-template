@@ -15,7 +15,7 @@ func StartPostgresContainer(t *testing.T) string {
 	ctx := context.Background()
 	container, err := postgres.Run(
 		ctx,
-		"postgres:16-alpine",
+		"postgres:18-trixie",
 		postgres.WithDatabase("app_test"),
 		postgres.WithUsername("app"),
 		postgres.WithPassword("app"),

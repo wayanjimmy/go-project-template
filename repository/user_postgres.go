@@ -53,7 +53,7 @@ func (r *PostgresUserRepository) ExecuteUnderTransaction(tx transaction.Transact
 func (r *PostgresUserRepository) FindByID(ctx context.Context, id string) (*entity.User, error) {
 	r.log.Info(ctx, "repository.user.find_by_id", "user_id", id)
 	query, args, err := r.sb.
-		Select("id", "name", "email", "address_encrypted").
+		Select("id", "name", "email", "address_encrypted", "status").
 		From("users").
 		Where(sq.Eq{"id": id}).
 		ToSql()
@@ -65,7 +65,7 @@ func (r *PostgresUserRepository) FindByID(ctx context.Context, id string) (*enti
 
 	var user entity.User
 	var encryptedAddress []byte
-	if err := row.Scan(&user.ID, &user.Name, &user.Email, &encryptedAddress); err != nil {
+	if err := row.Scan(&user.ID, &user.Name, &user.Email, &encryptedAddress, &user.Status); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("user %s not found", id)
 		}
@@ -90,13 +90,14 @@ func (r *PostgresUserRepository) Save(ctx context.Context, user *entity.User) er
 
 	query, args, err := r.sb.
 		Insert("users").
-		Columns("id", "name", "email", "address_encrypted").
-		Values(user.ID, user.Name, user.Email, encryptedAddress).
+		Columns("id", "name", "email", "address_encrypted", "status").
+		Values(user.ID, user.Name, user.Email, encryptedAddress, user.Status).
 		Suffix(`ON CONFLICT (id)
 		DO UPDATE SET
 			name = EXCLUDED.name,
 			email = EXCLUDED.email,
 			address_encrypted = EXCLUDED.address_encrypted,
+			status = EXCLUDED.status,
 			updated_at = NOW()`).
 		ToSql()
 	if err != nil {
@@ -121,7 +122,7 @@ func (r *PostgresUserRepository) List(ctx context.Context, limit, offset int) ([
 	}
 
 	query, args, err := r.sb.
-		Select("id", "name", "email", "address_encrypted").
+		Select("id", "name", "email", "address_encrypted", "status").
 		From("users").
 		OrderBy("updated_at DESC").
 		Limit(uint64(limit)).
@@ -141,7 +142,7 @@ func (r *PostgresUserRepository) List(ctx context.Context, limit, offset int) ([
 	for rows.Next() {
 		var user entity.User
 		var encryptedAddress []byte
-		if err := rows.Scan(&user.ID, &user.Name, &user.Email, &encryptedAddress); err != nil {
+		if err := rows.Scan(&user.ID, &user.Name, &user.Email, &encryptedAddress, &user.Status); err != nil {
 			return nil, fmt.Errorf("scan user failed: %w", err)
 		}
 

@@ -10,7 +10,6 @@ var validate = validator.New(validator.WithRequiredStructEnabled())
 
 type Config struct {
 	DatabaseURL string `validate:"required"`
-	RedisAddr   string `validate:"omitempty"`
 	ServerPort  string `validate:"omitempty"`
 
 	SecretType  string `validate:"required_with=SecretRoot SecretEncryptionParent SecretEncryptionName,omitempty,oneof=FILESYSTEM"`
@@ -38,10 +37,6 @@ func (c *Config) Validate() error {
 }
 
 func (c *Config) DatabaseConfig() *Config {
-	return c
-}
-
-func (c *Config) RedisConfig() *Config {
 	return c
 }
 

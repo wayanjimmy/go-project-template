@@ -30,7 +30,7 @@ tasks:
   test:integration:
     desc: Run integration tests (uses testcontainers + Postgres)
     cmds:
-      - go test ./repository -count=1
+      - go test ./repository ./workflows/... -count=1
 
   test:http:
     desc: Run HTTP API tests with Hurl (expects server running and hurl installed)

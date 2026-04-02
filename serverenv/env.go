@@ -7,15 +7,15 @@ import (
 	"go-project-template/logger"
 	"go-project-template/repository"
 
-	"github.com/redis/go-redis/v9"
+	workflowbackend "github.com/cschleiden/go-workflows/backend"
 )
 
 type Option func(*ServerEnv) *ServerEnv
 
 type ServerEnv struct {
-	database      *sqldb.DB
-	rdb           *redis.Client
-	dataEncryptor repository.Encryptor
+	database        *sqldb.DB
+	workflowBackend workflowbackend.Backend
+	dataEncryptor   repository.Encryptor
 }
 
 func (s *ServerEnv) Database() *sqldb.DB {
@@ -25,18 +25,18 @@ func (s *ServerEnv) Database() *sqldb.DB {
 	return s.database
 }
 
-func (s *ServerEnv) Redis() *redis.Client {
-	if s == nil {
-		return nil
-	}
-	return s.rdb
-}
-
 func (s *ServerEnv) DataEncryptor() repository.Encryptor {
 	if s == nil {
 		return nil
 	}
 	return s.dataEncryptor
+}
+
+func (s *ServerEnv) WorkflowBackend() workflowbackend.Backend {
+	if s == nil {
+		return nil
+	}
+	return s.workflowBackend
 }
 
 func New(ctx context.Context, log *logger.Logger, opts ...Option) *ServerEnv {
@@ -56,13 +56,6 @@ func WithDatabase(database *sqldb.DB) Option {
 	}
 }
 
-func WithRedis(rdb *redis.Client) Option {
-	return func(s *ServerEnv) *ServerEnv {
-		s.rdb = rdb
-		return s
-	}
-}
-
 func WithDataEncryptor(enc repository.Encryptor) Option {
 	return func(s *ServerEnv) *ServerEnv {
 		s.dataEncryptor = enc
@@ -70,7 +63,12 @@ func WithDataEncryptor(enc repository.Encryptor) Option {
 	}
 }
 
-// func WithRedis
+func WithWorkflowBackend(workflowBackend workflowbackend.Backend) Option {
+	return func(s *ServerEnv) *ServerEnv {
+		s.workflowBackend = workflowBackend
+		return s
+	}
+}
 
 // func WithElastic and the list goes on ...
 
@@ -85,8 +83,8 @@ func (s *ServerEnv) Close(ctx context.Context) error {
 		s.database.Close(ctx)
 	}
 
-	if s.rdb != nil {
-		if err := s.rdb.Close(); err != nil {
+	if s.workflowBackend != nil {
+		if err := s.workflowBackend.Close(); err != nil {
 			errs = append(errs, err)
 		}
 	}

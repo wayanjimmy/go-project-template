@@ -3,15 +3,20 @@ package setup
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"net/url"
+	"strconv"
+	"strings"
+
 	appconfig "go-project-template/config"
 	"go-project-template/database/sqldb"
 	"go-project-template/key"
 	"go-project-template/logger"
 	"go-project-template/repository"
 	"go-project-template/serverenv"
-	"strings"
 
-	"github.com/redis/go-redis/v9"
+	workflowbackend "github.com/cschleiden/go-workflows/backend"
+	workflowpostgres "github.com/cschleiden/go-workflows/backend/postgres"
 )
 
 // Validatable is implemented by config structs that can self-validate.
@@ -22,11 +27,6 @@ type Validatable interface {
 // DatabaseConfigProvider exposes database config.
 type DatabaseConfigProvider interface {
 	DatabaseConfig() *appconfig.Config
-}
-
-// RedisConfigProvider exposes redis config.
-type RedisConfigProvider interface {
-	RedisConfig() *appconfig.Config
 }
 
 // KeyManagerConfigProvider exposes key manager config.
@@ -64,17 +64,25 @@ func Setup(ctx context.Context, log *logger.Logger, cfg any) (*serverenv.ServerE
 				return nil, fmt.Errorf("run db migrations: %w", err)
 			}
 
-			serverEnvOpts = append(serverEnvOpts, serverenv.WithDatabase(db))
-		}
-	}
+			workflowDBCfg, err := parseWorkflowPostgresConfig(dbCfg.DatabaseURL)
+			if err != nil {
+				db.Close(ctx)
+				return nil, fmt.Errorf("parse workflow database url: %w", err)
+			}
 
-	if provider, ok := cfg.(RedisConfigProvider); ok {
-		redisCfg := provider.RedisConfig()
-		if redisCfg != nil && redisCfg.RedisAddr != "" {
-			log.Info(ctx, "setup", "status", "connecting to redis")
+			wb := workflowpostgres.NewPostgresBackend(
+				workflowDBCfg.host,
+				workflowDBCfg.port,
+				workflowDBCfg.user,
+				workflowDBCfg.password,
+				workflowDBCfg.database,
+				workflowpostgres.WithApplyMigrations(false),
+				workflowpostgres.WithBackendOptions(
+					workflowbackend.WithLogger(slog.Default()),
+				),
+			)
 
-			rdb := redis.NewClient(&redis.Options{Addr: redisCfg.RedisAddr})
-			serverEnvOpts = append(serverEnvOpts, serverenv.WithRedis(rdb))
+			serverEnvOpts = append(serverEnvOpts, serverenv.WithDatabase(db), serverenv.WithWorkflowBackend(wb))
 		}
 	}
 
@@ -101,6 +109,62 @@ func Setup(ctx context.Context, log *logger.Logger, cfg any) (*serverenv.ServerE
 	}
 
 	return serverenv.New(ctx, log, serverEnvOpts...), nil
+}
+
+type workflowPostgresConfig struct {
+	host     string
+	port     int
+	user     string
+	password string
+	database string
+}
+
+func parseWorkflowPostgresConfig(databaseURL string) (*workflowPostgresConfig, error) {
+	u, err := url.Parse(databaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid database url: %w", err)
+	}
+
+	if u.Scheme != "postgres" && u.Scheme != "postgresql" {
+		return nil, fmt.Errorf("unsupported database url scheme %q", u.Scheme)
+	}
+
+	host := u.Hostname()
+	if host == "" {
+		return nil, fmt.Errorf("database host is required")
+	}
+
+	port := 5432
+	if p := u.Port(); p != "" {
+		parsedPort, err := strconv.Atoi(p)
+		if err != nil {
+			return nil, fmt.Errorf("invalid database port %q: %w", p, err)
+		}
+		port = parsedPort
+	}
+
+	user := ""
+	password := ""
+	if u.User != nil {
+		user = u.User.Username()
+		password, _ = u.User.Password()
+	}
+	if user == "" {
+		return nil, fmt.Errorf("database user is required")
+	}
+
+	database := strings.TrimPrefix(u.Path, "/")
+	if database == "" {
+		return nil, fmt.Errorf("database name is required")
+	}
+
+	return &workflowPostgresConfig{
+		host:     host,
+		port:     port,
+		user:     user,
+		password: password,
+		database: database,
+	}, nil
 }
 
 func ensureEncryptionKey(ctx context.Context, km key.KeyManager, cfg *appconfig.Config) error {
