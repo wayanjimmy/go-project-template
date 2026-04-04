@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"go-project-template/apperror"
 	"go-project-template/database/sqldb"
 	"go-project-template/entity"
 	"go-project-template/logger"
@@ -67,7 +68,7 @@ func (r *PostgresUserRepository) FindByID(ctx context.Context, id string) (*enti
 	var encryptedAddress []byte
 	if err := row.Scan(&user.ID, &user.Name, &user.Email, &encryptedAddress); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, fmt.Errorf("user %s not found", id)
+			return nil, userNotFoundError(id)
 		}
 		return nil, fmt.Errorf("find user by id failed: %w", err)
 	}
@@ -172,8 +173,24 @@ func (r *PostgresUserRepository) Delete(ctx context.Context, id string) error {
 		return fmt.Errorf("build delete user query failed: %w", err)
 	}
 
-	if _, err := r.exec.ExecContext(ctx, query, args...); err != nil {
+	result, err := r.exec.ExecContext(ctx, query, args...)
+	if err != nil {
 		return fmt.Errorf("delete user failed: %w", err)
 	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("delete user rows affected failed: %w", err)
+	}
+	if rowsAffected == 0 {
+		return userNotFoundError(id)
+	}
 	return nil
+}
+
+func userNotFoundError(id string) error {
+	return apperror.NotFound("user not found", map[string]any{
+		"resource": "user",
+		"id":       id,
+	})
 }

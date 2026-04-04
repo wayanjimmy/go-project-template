@@ -13,7 +13,8 @@ func SetupRouter(userService service.UserService, searchService service.SearchSe
 	r.Use(requestIDMiddleware)
 
 	userHandler := v1.NewUserHandler(userService, log)
-	searchHandler := v1.NewSearchHandler(searchService)
+	searchHandler := v1.NewSearchHandler(searchService, log)
+	errorExamplesHandler := v1.NewErrorExamplesHandler(log)
 
 	r.Route("/v1", func(r chi.Router) {
 		r.Post("/users", userHandler.Create)
@@ -22,6 +23,7 @@ func SetupRouter(userService service.UserService, searchService service.SearchSe
 		r.Delete("/users/{id}", userHandler.Delete)
 
 		r.Get("/search/users", searchHandler.Users)
+		r.Get("/examples/errors/internal", errorExamplesHandler.Internal)
 	})
 
 	return r

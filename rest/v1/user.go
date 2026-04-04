@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"encoding/json"
 	"go-project-template/logger"
 	"net/http"
 
@@ -24,15 +23,15 @@ func NewUserHandler(service service.UserService, log *logger.Logger) *UserHandle
 }
 
 type createUserRequest struct {
-	Name    string `json:"name"`
-	Email   string `json:"email"`
-	Address string `json:"address"`
+	Name    string `json:"name" validate:"required"`
+	Email   string `json:"email" validate:"required,email"`
+	Address string `json:"address" validate:"required"`
 }
 
 type updateUserRequest struct {
-	Name    string `json:"name"`
-	Email   string `json:"email"`
-	Address string `json:"address"`
+	Name    string `json:"name" validate:"required"`
+	Email   string `json:"email" validate:"required,email"`
+	Address string `json:"address" validate:"required"`
 }
 
 type userResponse struct {
@@ -51,66 +50,90 @@ func toUserResponse(user *entity.User) userResponse {
 	}
 }
 
+func (r createUserRequest) Validate() error {
+	return validateRequest(r)
+}
+
+func (r updateUserRequest) Validate() error {
+	return validateRequest(r)
+}
+
 func (h *UserHandler) Create(w http.ResponseWriter, r *http.Request) {
 	h.log.Info(r.Context(), "handler.user.create")
 
 	var req createUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err := decodeJSONBody(r, &req); err != nil {
+		respondError(h.log, w, r, err)
+		return
+	}
+	if err := req.Validate(); err != nil {
+		respondError(h.log, w, r, err)
 		return
 	}
 
 	user, err := h.service.Create(r.Context(), req.Name, req.Email, req.Address)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(h.log, w, r, err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(toUserResponse(user))
+	respondJSON(h.log, r.Context(), w, http.StatusCreated, toUserResponse(user))
 }
 
 func (h *UserHandler) Update(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	h.log.Info(r.Context(), "handler.user.update", "user_id", id)
+	if err := validateUserID(id); err != nil {
+		respondError(h.log, w, r, err)
+		return
+	}
 
 	var req updateUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	if err := decodeJSONBody(r, &req); err != nil {
+		respondError(h.log, w, r, err)
+		return
+	}
+	if err := req.Validate(); err != nil {
+		respondError(h.log, w, r, err)
 		return
 	}
 
 	user, err := h.service.Update(r.Context(), id, req.Name, req.Email, req.Address)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(h.log, w, r, err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(toUserResponse(user))
+	respondJSON(h.log, r.Context(), w, http.StatusOK, toUserResponse(user))
 }
 
 func (h *UserHandler) Get(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	h.log.Info(r.Context(), "handler.user.get", "user_id", id)
-
-	user, err := h.service.FindByID(r.Context(), id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+	if err := validateUserID(id); err != nil {
+		respondError(h.log, w, r, err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(toUserResponse(user))
+	user, err := h.service.FindByID(r.Context(), id)
+	if err != nil {
+		respondError(h.log, w, r, err)
+		return
+	}
+
+	respondJSON(h.log, r.Context(), w, http.StatusOK, toUserResponse(user))
 }
 
 func (h *UserHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	h.log.Info(r.Context(), "handler.user.delete", "user_id", id)
+	if err := validateUserID(id); err != nil {
+		respondError(h.log, w, r, err)
+		return
+	}
 
 	if err := h.service.Delete(r.Context(), id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		respondError(h.log, w, r, err)
 		return
 	}
 

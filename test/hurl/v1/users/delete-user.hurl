@@ -25,4 +25,8 @@ GET {{base_url}}/v1/users/{{user_id}}
 HTTP *
 [Asserts]
 status == 404
-body contains "not found"
+header "Content-Type" contains "application/json"
+jsonpath "$.error.code" == "not_found"
+jsonpath "$.error.message" == "user not found"
+jsonpath "$.error.details.resource" == "user"
+jsonpath "$.error.details.id" == "{{user_id}}"
