@@ -4,14 +4,14 @@
 FROM docker.io/node:24-bookworm-slim AS frontend-builder
 WORKDIR /src
 
-COPY package.json pnpm-lock.yaml tsconfig.json vite.config.ts ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json vite.config.ts ./
 COPY cmd/admin-tools/resources ./cmd/admin-tools/resources
 
 RUN corepack enable && pnpm install --frozen-lockfile
 RUN pnpm exec vp build
 
 # ---------- Go builder (all binaries) ----------
-FROM docker.io/golang:1.25-bookworm AS go-builder
+FROM docker.io/golang:1.27-bookworm AS go-builder
 WORKDIR /src
 
 COPY go.mod go.sum ./

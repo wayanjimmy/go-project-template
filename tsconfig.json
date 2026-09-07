@@ -6,6 +6,7 @@
     "jsx": "react-jsx",
     "strict": true,
     "noEmit": true,
+    "skipLibCheck": true,
     "types": ["vite/client"]
   },
   "include": ["cmd/admin-tools/resources/js/**/*", "vite.config.ts"]

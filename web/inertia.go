@@ -23,7 +23,7 @@ func NewInertia(cfg InertiaConfig) *inertia.Inertia {
 	var i *inertia.Inertia
 
 	if cfg.FS != nil {
-		i = inertia.NewWithFS(cfg.URL, cfg.RootTemplate, cfg.Version, cfg.FS)
+		i = inertia.New(cfg.URL, cfg.RootTemplate, cfg.Version, cfg.FS)
 	} else if cfg.Dev {
 		templatePath := cfg.RootTemplateDev
 		if templatePath == "" {

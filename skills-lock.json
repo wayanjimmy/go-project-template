@@ -4,12 +4,15 @@
     "agent-browser": {
       "source": "vercel-labs/agent-browser",
       "sourceType": "github",
-      "computedHash": "35478d4b0a33b3f98e22b7b4f3fe2d2919ebe72a6ca24b3a7175a9b17cc2788d"
+      "skillPath": "skills/agent-browser/SKILL.md",
+      "computedHash": "80161e6836b3b40f4e83730a290deb40ac14d877d38c97ad5f6d71be37ce74c3"
     },
     "use-modern-go": {
       "source": "JetBrains/go-modern-guidelines",
+      "ref": "main",
       "sourceType": "github",
-      "computedHash": "a814593e0b52d429d6fedd2550782b11891408111ca6fc9b04ec80f308e547bb"
+      "skillPath": "plugin/skills/use-modern-go/SKILL.md",
+      "computedHash": "c308fc949fc8a369b5ea0f2d57072789eda8d05f420b972c67576b285b7ba539"
     }
   }
 }

@@ -37,7 +37,8 @@ const rootTemplateHTML = `<!DOCTYPE html>
   {{ end }}
 </head>
 <body>
-  <div id="app" data-page="{{ marshal .page }}"></div>
+  <script data-page="app" type="application/json">{{ marshal .page }}</script>
+  <div id="app"></div>
   <script type="module" src="{{ viteAsset "cmd/admin-tools/resources/js/app.tsx" }}"></script>
 </body>
 </html>
