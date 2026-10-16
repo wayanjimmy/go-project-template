@@ -105,7 +105,7 @@ func run(ctx context.Context, log *logger.Logger) error {
 	userService := service.NewUserService(repos.UserRepo, beginner, eventPub, log)
 	searchService := service.NewSearchService(repos.UserSearcher)
 
-	watermillRouter, err := worker.NewRouter(pubSub, repos.UserIndexer, watermillLogger)
+	watermillRouter, err := worker.NewRouter(ctx, nil, pubSub, repos.UserIndexer, watermillLogger)
 	if err != nil {
 		return fmt.Errorf("failed to create worker router: %w", err)
 	}

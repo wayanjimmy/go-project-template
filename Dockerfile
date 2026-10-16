@@ -30,13 +30,17 @@ RUN mkdir -p /out && \
       -ldflags "-s -w -X 'go-project-template/buildinfo.Version=${VERSION}'" \
       -o /out/ ./cmd/...
 
-# ---------- Runtime image (single image with all binaries, distroless non-root) ----------
+# ---------- Runtime image (distroless non-root, one binary per image) ----------
+# Build a role-specific image with:
+#   podman build --format=docker --build-arg service=worker -t app-worker .
+# Binaries available: server, worker, admin-tools, elasticcli.
 FROM gcr.io/distroless/static-debian12:nonroot
 WORKDIR /app
 
-COPY --from=go-builder /out/ /app/bin/
+ARG service=server
+
+COPY --from=go-builder /out/${service} /app/bin/server
 
 USER nonroot:nonroot
 
-# Default binary. In Kubernetes/podman, override entrypoint/command to run another binary.
 ENTRYPOINT ["/app/bin/server"]
