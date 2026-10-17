@@ -1,0 +1,10 @@
+# Local development cluster managed by ctlptl (https://github.com/tilt-dev/ctlptl).
+# Creates a kind cluster with a local container registry.
+#
+#   ctlptl apply -f cluster.yaml
+#
+apiVersion: ctlptl.dev/v1alpha1
+kind: Cluster
+product: kind
+registry: ctlptl-registry
+name: kind-go-project-template

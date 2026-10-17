@@ -39,8 +39,11 @@ func NewLogger(ctx context.Context, w io.Writer) (*logger.Logger, func()) {
 		// No ntfy configured; never send.
 		sender = nil
 	} else {
-		events.Error = func(ctx context.Context, r logger.Record) {
-			sender.Send(ctx, formatRecord(buildinfo.Service, r))
+		events.Error = func(_ context.Context, r logger.Record) {
+			// Detach from the request context: the HTTP request that logged
+			// the error may finish (cancelling its context) before the async
+			// delivery goroutine runs.
+			sender.Send(context.WithoutCancel(ctx), formatRecord(buildinfo.Service, r))
 		}
 	}
 

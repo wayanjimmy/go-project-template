@@ -4,7 +4,6 @@
 
 # Local dependencies/artifacts
 node_modules
-bin
 
 # Env/secrets
 .env

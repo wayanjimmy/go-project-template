@@ -1,0 +1,65 @@
+# API server deployment.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server
+  labels:
+    app: go-project-template
+    component: server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: go-project-template
+      component: server
+  template:
+    metadata:
+      labels:
+        app: go-project-template
+        component: server
+    spec:
+      hostAliases:
+        - hostnames:
+            - host.containers.internal
+          ip: 169.254.1.2
+      containers:
+        - name: server
+          imagePullPolicy: IfNotPresent
+          image: go-project-template/server
+          ports:
+            - containerPort: 3030
+              name: http
+          envFrom:
+            - configMapRef:
+                name: app-config
+          env:
+            - name: SECRET_DRIVER
+              value: "FILESYSTEM"
+            - name: SECRET_ROOT
+              value: "/tmp/.secrets"
+            - name: SECRET_ENCRYPTION_PARENT
+              value: "local"
+            - name: SECRET_ENCRYPTION_NAME
+              value: "user-data"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: server
+  labels:
+    app: go-project-template
+    component: server
+spec:
+  selector:
+    app: go-project-template
+    component: server
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

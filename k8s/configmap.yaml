@@ -1,0 +1,14 @@
+# Shared config for the app deployments.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  labels:
+    app: go-project-template
+data:
+  SERVER_PORT: "3030"
+  ADMIN_TOOLS_PORT: "8081"
+  DATABASE_URL: "postgres://app:app@host.containers.internal:25432/app_db?sslmode=disable"
+  REDIS_ADDR: "host.containers.internal:6379"
+  NTFY_URL: "http://host.containers.internal:25999"
+  NTFY_TOPIC: "app-alerts"

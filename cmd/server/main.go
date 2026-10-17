@@ -21,6 +21,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
 	"golang.org/x/sync/errgroup"
 )
@@ -76,9 +77,26 @@ func runServer(ctx context.Context, log *logger.Logger) error {
 	beginner := sqldb.NewBeginner(db)
 
 	watermillLogger := logger.NewWatermillAdapter(log)
-	pubSub := gochannel.NewGoChannel(gochannel.Config{}, watermillLogger)
 
-	decoratedPub, err := publisher.CorrelationIDDecorator()(pubSub)
+	// Distributed mode (REDIS_ADDR set): the server only publishes; workers
+	// own the consuming. Single-binary mode: in-process gochannel for both.
+	var eventBus message.Publisher
+	var inProcessSub message.Subscriber
+	if env.Redis() != nil {
+		streamPub, err := worker.NewRedisStreamPublisher(env.Redis(), watermillLogger)
+		if err != nil {
+			return fmt.Errorf("failed to create redis stream publisher: %w", err)
+		}
+		defer streamPub.Close()
+		eventBus = streamPub
+		log.Info(ctx, "startup", "status", "publishing events to redis streams")
+	} else {
+		goChan := gochannel.NewGoChannel(gochannel.Config{}, watermillLogger)
+		eventBus = goChan
+		inProcessSub = goChan
+	}
+
+	decoratedPub, err := publisher.CorrelationIDDecorator()(eventBus)
 	if err != nil {
 		return fmt.Errorf("failed to decorate publisher: %w", err)
 	}
@@ -87,7 +105,7 @@ func runServer(ctx context.Context, log *logger.Logger) error {
 	userService := service.NewUserService(repos.UserRepo, beginner, eventPub, log)
 	searchService := service.NewSearchService(repos.UserSearcher)
 
-	watermillRouter, err := worker.NewRouter(ctx, env.Redis(), pubSub, repos.UserIndexer, watermillLogger)
+	watermillRouter, err := worker.NewRouter(ctx, env.Redis(), inProcessSub, repos.UserIndexer, watermillLogger)
 	if err != nil {
 		return fmt.Errorf("failed to create worker router: %w", err)
 	}
