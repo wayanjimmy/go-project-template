@@ -267,6 +267,22 @@ On each change Tilt builds the binary on the host (`CGO_ENABLED=0 go build`), pa
 
 ![Tilt dashboard with server, worker and admin-tools running on kind](docs/screenshots/tilt-dashboard.png)
 
+### Logs
+
+Every binary logs structured JSON (time, level, msg, service, correlation_id) visible live in the Tilt resource panes.
+
+Server — request handling, repository writes, publishing `user.created` to the Redis stream, and error responses (these also fire an ntfy alert):
+
+![Server log pane: JSON logs including redis stream publish and error response](docs/screenshots/tilt-logs-server.png)
+
+Worker — receiving the message from the stream (consumer group `app-worker`), indexing the user, and acking:
+
+![Worker log pane: received, indexed, acked](docs/screenshots/tilt-logs-worker.png)
+
+ntfy subscriber pane — the live alert stream the apps publish on error-level logs:
+
+![ntfy-subscriber pane streaming alerts](docs/screenshots/tilt-logs-ntfy-subscriber.png)
+
 ---
 
 ## Repository structure (high-level)
