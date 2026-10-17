@@ -247,6 +247,28 @@ Admin tools URL: `http://localhost:8081/users`
 
 ---
 
+## Local Kubernetes with Tilt
+
+Run the multi-binary deployment (server, worker, admin-tools) against a local kind cluster with a local image registry, managed by [ctlptl](https://github.com/tilt-dev/ctlptl):
+
+```bash
+# 1) Start infra (postgres, redis, ntfy) on the host
+docker-compose up -d
+
+# 2) One-time: create the kind cluster + local registry
+ctlptl apply -f cluster.yaml
+
+# 3) Start Tilt (rootless podman needs DOCKER_HOST)
+export DOCKER_HOST=unix:///run/user/1000/podman/podman.sock
+tilt up
+```
+
+On each change Tilt builds the binary on the host (`CGO_ENABLED=0 go build`), packs it into a thin image, pushes it to the local registry, and rolls the Deployment. The pods reach host-side postgres/redis/ntfy via `host.containers.internal`. Open `http://localhost:10350` for the Tilt dashboard:
+
+![Tilt dashboard with server, worker and admin-tools running on kind](docs/screenshots/tilt-dashboard.png)
+
+---
+
 ## Repository structure (high-level)
 
 ```text

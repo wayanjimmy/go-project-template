@@ -31,3 +31,15 @@ func newRedisStreamSubscriber(ctx context.Context, rdb *redis.Client, logger wat
 		ConsumerGroup: consumerGroup,
 	}, logger)
 }
+
+// NewRedisStreamPublisher builds the publisher side of the stream: the server
+// publishes user events to Redis so any worker in the consumer group picks
+// them up. Uses the same default marshalling as the subscriber.
+func NewRedisStreamPublisher(rdb *redis.Client, logger watermill.LoggerAdapter) (*redisstream.Publisher, error) {
+	if rdb == nil {
+		return nil, fmt.Errorf("redis client is required")
+	}
+	return redisstream.NewPublisher(redisstream.PublisherConfig{
+		Client: rdb,
+	}, logger)
+}

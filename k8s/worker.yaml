@@ -1,0 +1,47 @@
+# Worker deployment. Scales horizontally: replicas share the Redis Streams
+# consumer group so each event is delivered to exactly one worker.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  labels:
+    app: go-project-template
+    component: worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: go-project-template
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: go-project-template
+        component: worker
+    spec:
+      hostAliases:
+        - hostnames:
+            - host.containers.internal
+          ip: 169.254.1.2
+      containers:
+        - name: worker
+          imagePullPolicy: IfNotPresent
+          image: go-project-template/worker
+          envFrom:
+            - configMapRef:
+                name: app-config
+          env:
+            - name: SECRET_DRIVER
+              value: "FILESYSTEM"
+            - name: SECRET_ROOT
+              value: "/tmp/.secrets"
+            - name: SECRET_ENCRYPTION_PARENT
+              value: "local"
+            - name: SECRET_ENCRYPTION_NAME
+              value: "user-data"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
