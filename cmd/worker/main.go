@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"os"
 
+	"go-project-template/alerting"
 	"go-project-template/buildinfo"
 	"go-project-template/config"
 	"go-project-template/logger"
 	"go-project-template/repository"
-	"go-project-template/requestid"
 	"go-project-template/setup"
 	"go-project-template/worker"
 
@@ -19,17 +19,18 @@ import (
 )
 
 func main() {
-	correlationIDFn := requestid.FromContext
-
 	ctx := context.Background()
 
 	buildinfo.Service = "APP-WORKER"
-	log := logger.New(os.Stdout, logger.LevelInfo, buildinfo.Service, correlationIDFn)
+	log, closeAlerts := alerting.NewLogger(ctx, os.Stdout)
+	defer closeAlerts()
 
 	logger.BuildInfo(ctx, log)
 
 	if err := runWorker(ctx, log); err != nil {
 		log.Error(ctx, "startup", "error", err.Error())
+		// Flush pending alerts before exiting; os.Exit skips defers.
+		closeAlerts()
 		os.Exit(1)
 	}
 }

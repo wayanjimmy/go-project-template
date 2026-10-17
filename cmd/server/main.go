@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go-project-template/alerting"
 	"go-project-template/buildinfo"
 	"go-project-template/config"
 	"go-project-template/database/sqldb"
 	"go-project-template/logger"
 	"go-project-template/publisher"
 	"go-project-template/repository"
-	"go-project-template/requestid"
 	"go-project-template/server"
 	"go-project-template/service"
 	"go-project-template/setup"
@@ -26,12 +26,11 @@ import (
 )
 
 func main() {
-	correlationIDFn := requestid.FromContext
-
 	ctx := context.Background()
 
 	buildinfo.Service = "APP-API"
-	log := logger.New(os.Stdout, logger.LevelInfo, buildinfo.Service, correlationIDFn)
+	log, closeAlerts := alerting.NewLogger(ctx, os.Stdout)
+	defer closeAlerts()
 
 	logger.BuildInfo(ctx, log)
 
