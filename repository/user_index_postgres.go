@@ -29,9 +29,12 @@ func NewPostgresUserSearchRepository(db *sqldb.DB, log *logger.Logger) *Postgres
 
 func (r *PostgresUserSearchRepository) Index(ctx context.Context, doc service.UserSearchDocument) error {
 	r.log.Info(ctx, "repository.user_search.index", "user_id", doc.UserID)
+	// Events trigger a refresh of current state, not a replay of old fields.
+	// Serialize the read and index write against user mutations and other refreshes.
 	query := `
 		INSERT INTO user_search_index (user_id, name, email, document)
-		VALUES ($1, $2, $3, to_tsvector('english', $4))
+		SELECT id, name, email, to_tsvector('english', name || ' ' || email)
+		FROM users WHERE id = $1 FOR UPDATE
 		ON CONFLICT (user_id)
 		DO UPDATE SET
 			name = EXCLUDED.name,
@@ -39,7 +42,7 @@ func (r *PostgresUserSearchRepository) Index(ctx context.Context, doc service.Us
 			document = EXCLUDED.document,
 			updated_at = NOW()
 	`
-	if _, err := r.exec.ExecContext(ctx, query, doc.UserID, doc.Name, doc.Email, doc.Document); err != nil {
+	if _, err := r.exec.ExecContext(ctx, query, doc.UserID); err != nil {
 		return fmt.Errorf("index user document failed: %w", err)
 	}
 	return nil

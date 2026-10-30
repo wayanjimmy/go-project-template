@@ -32,6 +32,7 @@ HTTP *
 [Asserts]
 status == 200
 header "Content-Type" contains "application/json"
-jsonpath "$[?(@.id=='{{user_id}}')]" count == 1
-jsonpath "$[?(@.id=='{{user_id}}')].name" contains "Hurl Search {{run_id}}"
-jsonpath "$[?(@.id=='{{user_id}}')].email" contains "hurl-search-{{run_id}}@example.com"
+jsonpath "$" count == 1
+jsonpath "$[0].id" == "{{user_id}}"
+jsonpath "$[0].name" == "Hurl Search {{run_id}}"
+jsonpath "$[0].email" == "hurl-search-{{run_id}}@example.com"

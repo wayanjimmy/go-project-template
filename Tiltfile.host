@@ -1,0 +1,52 @@
+# Run the real binaries as host processes, with logs in Tilt resource panes.
+# Supply a disposable DATABASE_URL for verification: application startup migrates it.
+database_url = os.getenv("DATABASE_URL")
+redis_addr = os.getenv("REDIS_ADDR")
+if not database_url or not redis_addr:
+    fail("Host mode requires DATABASE_URL and REDIS_ADDR pointing at local infrastructure")
+
+receiver_port = os.getenv("WEBHOOK_RECEIVER_PORT", "8092")
+receiver_url = "http://127.0.0.1:" + receiver_port
+shared_env = {
+    "DATABASE_URL": database_url,
+    "REDIS_ADDR": redis_addr,
+    "SECRET_ROOT": os.getenv("SECRET_ROOT", ".secrets"),
+    "WEBHOOK_URL": os.getenv("WEBHOOK_URL", receiver_url + "/hooks"),
+    # Public local-demo value, never use for an external destination.
+    "WEBHOOK_SECRET": os.getenv("WEBHOOK_SECRET", "local-demo-not-a-secret"),
+    "WEBHOOK_RETRY_BASE": os.getenv("WEBHOOK_RETRY_BASE", "1s"),
+    "SERVER_PORT": os.getenv("SERVER_PORT", "3030"),
+}
+
+local_resource(
+    "webhook-receiver",
+    serve_cmd = "uv run python test/webhook/receiver.py",
+    serve_env = {"WEBHOOK_RECEIVER_PORT": receiver_port},
+    deps = ["test/webhook/receiver.py"],
+    labels = ["webhooks"],
+)
+
+source_deps = ["service", "repository", "entity", "event", "config", "logger",
+               "alerting", "setup", "serverenv", "database", "key", "publisher",
+               "requestid", "transaction", "apperror", "worker", "buildinfo",
+               "client", "rest", "server", "go.mod", "go.sum"]
+for app in ["server", "worker"]:
+    local_resource(
+        app,
+        cmd = "go build -o ./bin/" + app + " ./cmd/" + app,
+        serve_cmd = "./bin/" + app,
+        serve_env = shared_env,
+        deps = source_deps + ["cmd/" + app],
+        resource_deps = ["webhook-receiver"] if app == "worker" else [],
+        labels = ["services"],
+    )
+
+local_resource(
+    "webhook-e2e",
+    cmd = "go test -tags=e2e ./test/webhook -v -count=1 -timeout=10m",
+    env = dict(shared_env, BASE_URL = "http://127.0.0.1:" + shared_env["SERVER_PORT"], WEBHOOK_RECEIVER_URL = receiver_url),
+    resource_deps = ["server", "worker", "webhook-receiver"],
+    auto_init = False,
+    trigger_mode = TRIGGER_MODE_MANUAL,
+    labels = ["tests"],
+)

@@ -11,5 +11,6 @@ status == 400
 header "Content-Type" contains "application/json"
 jsonpath "$.error.code" == "invalid_argument"
 jsonpath "$.error.message" == "request validation failed"
-jsonpath "$.error.details[?(@.field=='email')]" count == 1
-jsonpath "$.error.details[?(@.field=='address')]" count == 1
+jsonpath "$.error.details" count == 2
+jsonpath "$.error.details[?(@.field=='email')].message" == "email is required"
+jsonpath "$.error.details[?(@.field=='address')].message" == "address is required"

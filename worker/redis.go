@@ -19,7 +19,7 @@ const (
 	topicUserDeleted = "user_deleted"
 )
 
-func newRedisStreamSubscriber(ctx context.Context, rdb *redis.Client, logger watermill.LoggerAdapter) (*redisstream.Subscriber, error) {
+func newRedisStreamSubscriber(ctx context.Context, rdb *redis.Client, group string, logger watermill.LoggerAdapter) (*redisstream.Subscriber, error) {
 	if rdb == nil {
 		return nil, fmt.Errorf("redis client is required")
 	}
@@ -28,7 +28,7 @@ func newRedisStreamSubscriber(ctx context.Context, rdb *redis.Client, logger wat
 	}
 	return redisstream.NewSubscriber(redisstream.SubscriberConfig{
 		Client:        rdb,
-		ConsumerGroup: consumerGroup,
+		ConsumerGroup: group,
 	}, logger)
 }
 

@@ -1,0 +1,48 @@
+# Controlled receiver for the local example only. Never expose its control API publicly.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webhook-receiver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webhook-receiver
+  template:
+    metadata:
+      labels:
+        app: webhook-receiver
+    spec:
+      containers:
+        - name: receiver
+          image: docker.io/library/python:3.13-slim
+          command: ["python", "-u", "/receiver/receiver.py"]
+          env:
+            - name: WEBHOOK_RECEIVER_HOST
+              value: "0.0.0.0"
+          ports:
+            - containerPort: 8092
+          volumeMounts:
+            - name: code
+              mountPath: /receiver
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+      volumes:
+        - name: code
+          configMap:
+            name: webhook-receiver-code
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webhook-receiver
+spec:
+  selector:
+    app: webhook-receiver
+  ports:
+    - port: 8092
+      targetPort: 8092

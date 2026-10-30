@@ -12,3 +12,7 @@ data:
   REDIS_ADDR: "host.containers.internal:6379"
   NTFY_URL: "http://host.containers.internal:25999"
   NTFY_TOPIC: "app-alerts"
+  WEBHOOK_URL: "http://webhook-receiver:8092/hooks"
+  # Local demo only. Use a Kubernetes Secret for a real signing secret.
+  WEBHOOK_SECRET: "local-demo-not-a-secret"
+  WEBHOOK_RETRY_BASE: "1s"

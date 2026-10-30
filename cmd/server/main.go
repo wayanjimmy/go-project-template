@@ -43,6 +43,8 @@ func main() {
 }
 
 func runServer(ctx context.Context, log *logger.Logger) error {
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 	log.Info(ctx, "startup")
 
 	cfg := &config.Config{
@@ -100,14 +102,15 @@ func runServer(ctx context.Context, log *logger.Logger) error {
 	if err != nil {
 		return fmt.Errorf("failed to decorate publisher: %w", err)
 	}
-	eventPub := publisher.NewWatermillPublisher(decoratedPub)
-
-	userService := service.NewUserService(repos.UserRepo, beginner, eventPub, log)
+	userService := service.NewUserService(repos.UserRepo, beginner, log)
 	searchService := service.NewSearchService(repos.UserSearcher)
 
-	watermillRouter, err := worker.NewRouter(ctx, env.Redis(), inProcessSub, repos.UserIndexer, watermillLogger)
-	if err != nil {
-		return fmt.Errorf("failed to create worker router: %w", err)
+	var watermillRouter *message.Router
+	if inProcessSub != nil {
+		watermillRouter, err = worker.NewRouter(ctx, nil, inProcessSub, repos.UserIndexer, watermillLogger)
+		if err != nil {
+			return fmt.Errorf("failed to create worker router: %w", err)
+		}
 	}
 
 	r := server.SetupRouter(userService, searchService, log)
@@ -117,12 +120,18 @@ func runServer(ctx context.Context, log *logger.Logger) error {
 	g, ctx := errgroup.WithContext(ctx)
 
 	// Worker router
+	if watermillRouter != nil {
+		g.Go(func() error { return watermillRouter.Run(ctx) })
+	}
 	g.Go(func() error {
-		log.Info(ctx, "startup", "status", "worker router starting")
-		if err := watermillRouter.Run(ctx); err != nil {
-			return fmt.Errorf("worker router error: %w", err)
+		if watermillRouter != nil {
+			select {
+			case <-watermillRouter.Running():
+			case <-ctx.Done():
+				return nil
+			}
 		}
-		return nil
+		return worker.RunOutbox(ctx, db.SQL(), decoratedPub, log)
 	})
 
 	// HTTP server
@@ -150,8 +159,10 @@ func runServer(ctx context.Context, log *logger.Logger) error {
 		defer cancel()
 
 		var errs []error
-		if err := watermillRouter.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("worker router close failed: %w", err))
+		if watermillRouter != nil {
+			if err := watermillRouter.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("worker router close failed: %w", err))
+			}
 		}
 
 		if err := api.Shutdown(shutdownCtx); err != nil {

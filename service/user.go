@@ -17,6 +17,7 @@ type UserRepository interface {
 	List(ctx context.Context, limit, offset int) ([]entity.User, error)
 	Save(ctx context.Context, user *entity.User) error
 	Delete(ctx context.Context, id string) error
+	RecordEvent(ctx context.Context, topic string, payload any) error
 	ExecuteUnderTransaction(tx transaction.Transaction) (UserRepository, error)
 }
 
@@ -29,18 +30,17 @@ type UserService interface {
 }
 
 type userService struct {
-	repo      UserRepository
-	beginner  transaction.Beginner
-	publisher EventPublisher
-	log       *logger.Logger
+	repo     UserRepository
+	beginner transaction.Beginner
+	log      *logger.Logger
 }
 
-func NewUserService(repo UserRepository, beginner transaction.Beginner, publisher EventPublisher, log *logger.Logger) UserService {
+func NewUserService(repo UserRepository, beginner transaction.Beginner, log *logger.Logger) UserService {
 	if log == nil {
 		log = logger.Noop()
 	}
 
-	return &userService{repo: repo, beginner: beginner, publisher: publisher, log: log}
+	return &userService{repo: repo, beginner: beginner, log: log}
 }
 
 func (s *userService) Create(ctx context.Context, name, email, address string) (*entity.User, error) {
@@ -48,11 +48,20 @@ func (s *userService) Create(ctx context.Context, name, email, address string) (
 	id := uuid.NewString()
 	user := &entity.User{ID: id, Name: name, Email: email, Address: address}
 
-	if err := s.repo.Save(ctx, user); err != nil {
+	err := transaction.ExecuteUnderTransaction(ctx, s.beginner, s.log, func(tx transaction.Transaction) error {
+		repo, err := s.repo.ExecuteUnderTransaction(tx)
+		if err != nil {
+			return err
+		}
+		if err := repo.Save(ctx, user); err != nil {
+			return err
+		}
+		return recordUserEvent(ctx, repo, event.UserCreated, user)
+	})
+	if err != nil {
 		return nil, fmt.Errorf("create user failed: %w", err)
 	}
 
-	s.publishUserEvent(ctx, event.UserCreated, user)
 	return user, nil
 }
 
@@ -68,25 +77,33 @@ func (s *userService) Update(ctx context.Context, id, name, email, address strin
 		if _, err := txRepo.FindByID(ctx, id); err != nil {
 			return fmt.Errorf("find user failed: %w", err)
 		}
-		return txRepo.Save(ctx, user)
+		if err := txRepo.Save(ctx, user); err != nil {
+			return err
+		}
+		return recordUserEvent(ctx, txRepo, event.UserUpdated, user)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("update user failed: %w", err)
 	}
 
-	s.publishUserEvent(ctx, event.UserUpdated, user)
 	return user, nil
 }
 
 func (s *userService) Delete(ctx context.Context, id string) error {
 	s.log.Info(ctx, "service.user.delete", "user_id", id)
 
-	if err := s.repo.Delete(ctx, id); err != nil {
+	err := transaction.ExecuteUnderTransaction(ctx, s.beginner, s.log, func(tx transaction.Transaction) error {
+		repo, err := s.repo.ExecuteUnderTransaction(tx)
+		if err != nil {
+			return err
+		}
+		if err := repo.Delete(ctx, id); err != nil {
+			return err
+		}
+		return repo.RecordEvent(ctx, event.UserDeleted, event.UserDeletedEvent{UserID: id})
+	})
+	if err != nil {
 		return fmt.Errorf("delete user failed: %w", err)
-	}
-
-	if err := s.publisher.Publish(ctx, event.UserDeleted, event.UserDeletedEvent{UserID: id}); err != nil {
-		s.log.Error(ctx, "service.user.delete.publish_failed", "error", err.Error())
 	}
 
 	return nil
@@ -111,15 +128,12 @@ func (s *userService) List(ctx context.Context, limit, offset int) ([]entity.Use
 	return items, nil
 }
 
-func (s *userService) publishUserEvent(ctx context.Context, topic string, user *entity.User) {
+func recordUserEvent(ctx context.Context, repo UserRepository, topic string, user *entity.User) error {
 	evt := event.UserUpsertedEvent{
 		UserID:   user.ID,
 		Name:     user.Name,
 		Email:    user.Email,
-		Address:  user.Address,
 		Document: strings.Join([]string{user.Name, user.Email}, " "),
 	}
-	if err := s.publisher.Publish(ctx, topic, evt); err != nil {
-		s.log.Error(ctx, "service.user.publish_failed", "topic", topic, "error", err.Error())
-	}
+	return repo.RecordEvent(ctx, topic, evt)
 }

@@ -174,6 +174,118 @@ Search example (`/users?q=Hurl`):
 
 ---
 
+## Events and jobs: Watermill + Asynq
+
+The template includes two different background-work examples:
+
+| Example | Tool | Meaning |
+| --- | --- | --- |
+| Maintain the user search index | Watermill | A user changed; subscribers react to the fact |
+| Deliver a signed `user.created` webhook | Asynq | Execute an HTTP delivery with bounded retries |
+
+User creates, updates, and deletes save an event in `event_outbox` in the same
+PostgreSQL transaction as the user change. The API relays pending events to
+Watermill with stable event IDs. In Redis mode the API publishes only; workers
+consume through separate groups: `app-worker` for search and `app-webhooks` for
+webhook scheduling. Replicas within a group share work, while each group receives
+its own copy.
+
+Search events trigger a refresh from the current `users` row under a row lock.
+Replayed creation events cannot overwrite newer user fields, and events for
+deleted users leave no search entry. Webhooks retain the original event snapshot.
+
+The webhook subscriber persists an immutable delivery body in `webhook_deliveries`.
+A dispatcher enqueues its ID in the Asynq `webhooks` queue. Enqueue failures leave
+the row recoverable. A two-minute backstop re-enqueues overdue pending deliveries,
+including tasks lost from Redis. Database leases serialize attempts across replicas
+without holding a database connection during the HTTP request.
+
+Webhooks are optional. Configure these on `cmd/worker`:
+
+| Variable | Meaning |
+| --- | --- |
+| `REDIS_ADDR` | Required Redis address for distributed events and Asynq |
+| `WEBHOOK_URL` | One operator-configured HTTP(S) destination; unset disables webhooks |
+| `WEBHOOK_SECRET` | Required HMAC signing secret when a URL is configured |
+| `WEBHOOK_RETRY_BASE` | Exponential retry base, default `5s`, minimum `1s` |
+
+Delivery uses four concurrent handlers, a ten-second HTTP timeout, and at most six
+attempts. Network errors, `408`, `429`, and `5xx` retry; other non-`2xx` responses
+are terminal. Redirects are not followed. Asynq's retry schedule includes one
+extra second to accommodate Redis's whole-second timestamps. Terminal failures
+are recorded in PostgreSQL, logged for ntfy, and archived in Asynq. Asynqmon may
+be connected to the same Redis instance for task inspection.
+
+Requests include `X-Webhook-ID`, `X-Webhook-Timestamp`, `X-Webhook-Signature`, and
+`X-Request-ID`. The signature is `sha256=<hex HMAC-SHA256>` over the timestamp,
+a period, and the exact request body. Receivers should verify signatures with
+constant-time comparison, reject stale timestamps, and deduplicate successful
+deliveries by `X-Webhook-ID`. Delivery is **at least once**, not exactly once:
+a crash after receiver acceptance can repeat the same ID and body. Payloads
+include user ID, name, and email; addresses never enter the outbox or webhook.
+
+Persist Redis data for normal operation. PostgreSQL recovery can reconstruct
+pending webhook tasks, but does not reconstruct acknowledged Watermill history
+after Redis data loss. The in-process API mode remains a development convenience,
+not a durable replacement for Redis Streams. Retention/cleanup of outbox rows,
+delivery records, and streams is an application-specific operational policy.
+
+### Run and verify through Tilt on the host
+
+`TILT_MODE=host` runs the real API and worker binaries plus a controlled local
+HTTP receiver, without Kubernetes or starting/stopping infrastructure containers.
+Provide existing local PostgreSQL and Redis instances. Use a **disposable database**:
+startup applies migrations and the end-to-end tests create and delete users.
+
+```bash
+TILT_MODE=host \
+DATABASE_URL='postgres://app:app@127.0.0.1:25432/webhook_test?sslmode=disable' \
+REDIS_ADDR='127.0.0.1:6379' \
+tilt up
+
+# After server and worker are running:
+tilt trigger webhook-e2e
+tilt logs webhook-e2e
+tilt logs server worker webhook-receiver
+```
+
+Host mode defaults to the receiver at `127.0.0.1:8092/hooks`, the public demo
+signing value `local-demo-not-a-secret`, and a one-second retry base. Do not use
+that signing value for an external destination. The receiver's `/control` and
+`/requests` endpoints are test tools and must never be exposed publicly.
+
+The `webhook-e2e` resource checks signed success, `500 → 500 → 204` retries,
+permanent rejection, redirect refusal, exhausted retries, duplicate event
+deduplication, and the independent search subscriber. Its output records delivery
+and event IDs. Watch `outbox.published`, `webhook.recorded`, `webhook.enqueued`,
+`webhook.attempt`, and `webhook.failed` logs to follow the same operation.
+
+For failure recovery, run the following separately from other tests, against an
+isolated host-mode stack. It pauses Redis, temporarily denies Redis scripting,
+and kills only the worker binary from this checkout before restarting it through
+Tilt. It checks recovery after database commit, enqueue failure, and receiver
+acceptance before a worker crash. Linux `/proc` is required for the crash case.
+
+```bash
+WEBHOOK_TEST_DISPOSABLE=1 \
+BASE_URL=http://127.0.0.1:3030 \
+WEBHOOK_RECEIVER_URL=http://127.0.0.1:8092 \
+DATABASE_URL="$DATABASE_URL" REDIS_ADDR="$REDIS_ADDR" \
+go test -tags=e2e ./test/webhook -run '^TestWebhookRecovery$' -v -count=1 -timeout=8m
+```
+
+The recovery test changes Redis permissions for the default user. Never run it
+against shared Redis or alongside another application.
+
+Default Tilt mode still uses kind/ctlptl through `Tiltfile.kind`; it includes a
+receiver Deployment and the webhook configuration for the local example.
+`Tiltfile.host` intentionally runs only the API, worker, receiver, and manual
+test resource. Run admin-tools separately when needed.
+
+Repository integration tests can use `TEST_DATABASE_URL` to target an existing
+disposable database instead of starting testcontainers. Fixture loading resets
+tables; never point it at application or production data.
+
 ## Build
 
 Build all binaries with injected version metadata (single `VERSION` value):

@@ -42,6 +42,23 @@ func TestPostgresUserSearchRepository_SearchIndexDelete(t *testing.T) {
 		assert.Equal(t, "user-2", items[0].ID)
 	})
 
+	// Delayed events must not fail forever or resurrect users after deletion.
+	// Existing users must still index normally, as checked above.
+	t.Run("delayed event after user deletion", func(t *testing.T) {
+		testutil.LoadFixtures(t, db.SQL().DB, "users_for_indexing")
+		_, err := db.SQL().ExecContext(ctx, `DELETE FROM users WHERE id='user-2'`)
+		require.NoError(t, err)
+
+		err = repo.Index(ctx, service.UserSearchDocument{
+			UserID: "user-2", Name: "Charlie", Email: "charlie@example.com",
+			Document: "Charlie charlie@example.com",
+		})
+		require.NoError(t, err)
+		items, err := repo.Search(ctx, "charlie", 10)
+		require.NoError(t, err)
+		assert.Empty(t, items)
+	})
+
 	t.Run("delete index", func(t *testing.T) {
 		testutil.LoadFixtures(t, db.SQL().DB, "users_existing")
 

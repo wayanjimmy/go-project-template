@@ -5,17 +5,23 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"go-project-template/alerting"
 	"go-project-template/buildinfo"
+	"go-project-template/client/webhook"
 	"go-project-template/config"
 	"go-project-template/logger"
+	"go-project-template/publisher"
 	"go-project-template/repository"
 	"go-project-template/setup"
 	"go-project-template/worker"
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
+	"golang.org/x/sync/errgroup"
 )
 
 func main() {
@@ -40,11 +46,15 @@ func main() {
 // otherwise it falls back to in-process pub/sub (which only sees events
 // published by this same process).
 func runWorker(ctx context.Context, log *logger.Logger) error {
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 	log.Info(ctx, "startup")
 
 	cfg := &config.Config{
-		DatabaseURL: os.Getenv("DATABASE_URL"),
-		RedisAddr:   os.Getenv("REDIS_ADDR"),
+		DatabaseURL:   os.Getenv("DATABASE_URL"),
+		RedisAddr:     os.Getenv("REDIS_ADDR"),
+		WebhookURL:    os.Getenv("WEBHOOK_URL"),
+		WebhookSecret: os.Getenv("WEBHOOK_SECRET"),
 
 		SecretType:             envOrDefault("SECRET_DRIVER", "FILESYSTEM"),
 		SecretRoot:             os.Getenv("SECRET_ROOT"),
@@ -83,8 +93,33 @@ func runWorker(ctx context.Context, log *logger.Logger) error {
 	}
 	defer router.Close()
 
-	log.Info(ctx, "startup", "status", "worker router starting")
-	return router.Run(ctx)
+	g, ctx := errgroup.WithContext(ctx)
+	g.Go(func() error { return router.Run(ctx) })
+	if cfg.WebhookURL != "" {
+		retryBase, err := time.ParseDuration(envOrDefault("WEBHOOK_RETRY_BASE", "5s"))
+		if err != nil || retryBase < time.Second {
+			return fmt.Errorf("WEBHOOK_RETRY_BASE must be a duration of at least 1s")
+		}
+		store := repository.NewWebhookRepository(db.SQL(), log)
+		queue := publisher.NewAsynqQueue(cfg.RedisAddr)
+		defer queue.Close()
+		webhookRouter, err := worker.NewWebhookRouter(ctx, env.Redis(), worker.WebhookSubscriber(store, cfg.WebhookURL, log), watermillLogger)
+		if err != nil {
+			return err
+		}
+		defer webhookRouter.Close()
+		g.Go(func() error { return webhookRouter.Run(ctx) })
+		jobs, mux := worker.NewAsynqServer(cfg.RedisAddr, store, webhook.New(cfg.WebhookSecret), retryBase, log)
+		if err := jobs.Start(mux); err != nil {
+			return err
+		}
+		defer jobs.Shutdown()
+		g.Go(func() error {
+			return worker.Poll(ctx, log, "webhook.dispatch", func(ctx context.Context) error { return store.Dispatch(ctx, queue) })
+		})
+		log.Info(ctx, "startup", "status", "webhook subscriber and Asynq workers started", "queue", "webhooks", "concurrency", 4)
+	}
+	return g.Wait()
 }
 
 func envOrDefault(key, fallback string) string {

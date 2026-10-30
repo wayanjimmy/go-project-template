@@ -18,6 +18,9 @@ services:
 
   redis:
     image: docker.io/library/redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
     ports:
       - "6379:6379"
     healthcheck:
@@ -36,3 +39,4 @@ services:
 
 volumes:
   ntfy-cache:
+  redis-data:

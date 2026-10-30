@@ -26,7 +26,7 @@ func NewRouter(ctx context.Context, rdb *redis.Client, inProcessSub message.Subs
 	var sub message.Subscriber
 	switch {
 	case rdb != nil:
-		s, err := newRedisStreamSubscriber(ctx, rdb, logger)
+		s, err := newRedisStreamSubscriber(ctx, rdb, consumerGroup, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create redis stream subscriber: %w", err)
 		}
@@ -42,7 +42,7 @@ func NewRouter(ctx context.Context, rdb *redis.Client, inProcessSub message.Subs
 		return nil, fmt.Errorf("failed to create watermill router: %w", err)
 	}
 
-		handlers := NewUserIndexerHandlers(indexer)
+	handlers := NewUserIndexerHandlers(indexer)
 
 	router.AddNoPublisherHandler(
 		"index-user-created",
@@ -65,5 +65,20 @@ func NewRouter(ctx context.Context, rdb *redis.Client, inProcessSub message.Subs
 		handlers.OnUserDeleted,
 	)
 
+	return router, nil
+}
+
+// A separate group receives its own copy instead of competing with search workers.
+func NewWebhookRouter(ctx context.Context, rdb *redis.Client, handler message.NoPublishHandlerFunc, logger watermill.LoggerAdapter) (*message.Router, error) {
+	sub, err := newRedisStreamSubscriber(ctx, rdb, "app-webhooks", logger)
+	if err != nil {
+		return nil, err
+	}
+	router, err := message.NewRouter(message.RouterConfig{}, logger)
+	if err != nil {
+		_ = sub.Close()
+		return nil, err
+	}
+	router.AddNoPublisherHandler("schedule-user-webhook", event.UserCreated, sub, handler)
 	return router, nil
 }

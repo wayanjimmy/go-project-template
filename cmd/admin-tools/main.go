@@ -13,16 +13,13 @@ import (
 	"go-project-template/config"
 	"go-project-template/database/sqldb"
 	"go-project-template/logger"
-	"go-project-template/publisher"
 	"go-project-template/repository"
 	"go-project-template/requestid"
 	"go-project-template/service"
 	"go-project-template/setup"
 	"go-project-template/vite"
 	"go-project-template/web"
-	"go-project-template/worker"
 
-	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -93,29 +90,8 @@ func run(ctx context.Context, log *logger.Logger) error {
 	repos := repository.NewPostgresRepositories(db, encryptor, log)
 	beginner := sqldb.NewBeginner(db)
 
-	watermillLogger := logger.NewWatermillAdapter(log)
-	pubSub := gochannel.NewGoChannel(gochannel.Config{}, watermillLogger)
-
-	decoratedPub, err := publisher.CorrelationIDDecorator()(pubSub)
-	if err != nil {
-		return fmt.Errorf("failed to decorate publisher: %w", err)
-	}
-	eventPub := publisher.NewWatermillPublisher(decoratedPub)
-
-	userService := service.NewUserService(repos.UserRepo, beginner, eventPub, log)
+	userService := service.NewUserService(repos.UserRepo, beginner, log)
 	searchService := service.NewSearchService(repos.UserSearcher)
-
-	watermillRouter, err := worker.NewRouter(ctx, nil, pubSub, repos.UserIndexer, watermillLogger)
-	if err != nil {
-		return fmt.Errorf("failed to create worker router: %w", err)
-	}
-	defer watermillRouter.Close()
-
-	go func() {
-		if err := watermillRouter.Run(ctx); err != nil {
-			log.Error(ctx, "worker", "error", err.Error())
-		}
-	}()
 
 	devMode := envOrDefault("APP_ENV", "development") != "production"
 	if !devMode {
