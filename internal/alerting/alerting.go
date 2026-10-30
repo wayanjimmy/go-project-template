@@ -13,7 +13,7 @@ import (
 	"go-project-template/buildinfo"
 	"go-project-template/client/ntfy"
 	"go-project-template/logger"
-	"go-project-template/requestid"
+	"go-project-template/internal/requestid"
 )
 
 // AlertSender is the subset of the notification client used by the logger.

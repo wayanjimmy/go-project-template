@@ -5,7 +5,7 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	wmMiddleware "github.com/ThreeDotsLabs/watermill/message/router/middleware"
-	"go-project-template/requestid"
+	"go-project-template/internal/requestid"
 )
 
 const MetadataCorrelationID = wmMiddleware.CorrelationIDMetadataKey

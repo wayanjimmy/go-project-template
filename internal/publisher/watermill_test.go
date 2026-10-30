@@ -7,7 +7,7 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	"go-project-template/event"
-	"go-project-template/requestid"
+	"go-project-template/internal/requestid"
 )
 
 type fakeMessagePublisher struct {

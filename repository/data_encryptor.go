@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"go-project-template/key"
+	"go-project-template/internal/key"
 )
 
 var _ Encryptor = (*DataEncryptor)(nil)

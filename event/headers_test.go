@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"go-project-template/requestid"
+	"go-project-template/internal/requestid"
 )
 
 func TestHeaders_FromContextAndToMetadata(t *testing.T) {

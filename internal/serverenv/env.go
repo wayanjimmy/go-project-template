@@ -3,7 +3,7 @@ package serverenv
 import (
 	"context"
 	"errors"
-	"go-project-template/database/sqldb"
+	"go-project-template/internal/database/sqldb"
 	"go-project-template/logger"
 	"go-project-template/repository"
 

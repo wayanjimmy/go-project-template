@@ -2,7 +2,7 @@ package publisher
 
 import (
 	"go-project-template/event"
-	"go-project-template/requestid"
+	"go-project-template/internal/requestid"
 
 	"github.com/ThreeDotsLabs/watermill/message"
 )

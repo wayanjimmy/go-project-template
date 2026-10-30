@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"go-project-template/logger"
-	"go-project-template/requestid"
+	"go-project-template/internal/requestid"
 	"time"
 )
 

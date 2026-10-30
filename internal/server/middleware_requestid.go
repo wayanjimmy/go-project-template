@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"go-project-template/requestid"
+	"go-project-template/internal/requestid"
 )
 
 func requestIDMiddleware(next http.Handler) http.Handler {

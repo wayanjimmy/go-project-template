@@ -6,7 +6,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"go-project-template/requestid"
+	"go-project-template/internal/requestid"
 	"io"
 	"net/http"
 	"strconv"

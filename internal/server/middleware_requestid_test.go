@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"go-project-template/requestid"
+	"go-project-template/internal/requestid"
 )
 
 func TestRequestIDMiddleware_UsesClientHeader(t *testing.T) {

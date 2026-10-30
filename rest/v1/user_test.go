@@ -14,7 +14,7 @@ import (
 	"go-project-template/apperror"
 	"go-project-template/entity"
 	"go-project-template/logger"
-	"go-project-template/requestid"
+	"go-project-template/internal/requestid"
 
 	"github.com/go-chi/chi/v5"
 )

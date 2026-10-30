@@ -4,7 +4,7 @@ import (
 	"context"
 	"go-project-template/logger"
 	"go-project-template/repository"
-	"go-project-template/requestid"
+	"go-project-template/internal/requestid"
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"

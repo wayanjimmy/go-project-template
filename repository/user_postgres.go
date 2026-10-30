@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"go-project-template/apperror"
-	"go-project-template/database/sqldb"
+	"go-project-template/internal/database/sqldb"
 	"go-project-template/entity"
 	"go-project-template/logger"
 	"go-project-template/service"

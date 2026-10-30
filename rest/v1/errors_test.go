@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"go-project-template/logger"
-	"go-project-template/requestid"
+	"go-project-template/internal/requestid"
 )
 
 func TestRespondJSONLogsEncodingFailure(t *testing.T) {

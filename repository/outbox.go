@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"encoding/json/v2"
-	"go-project-template/requestid"
+	"go-project-template/internal/requestid"
 	"uuid"
 
 	"github.com/jmoiron/sqlx"

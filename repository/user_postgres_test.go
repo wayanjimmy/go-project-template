@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"go-project-template/entity"
 	"go-project-template/logger"
-	"go-project-template/test/testutil"
+	"go-project-template/internal/testutil"
 	"testing"
 
 	"github.com/google/uuid"

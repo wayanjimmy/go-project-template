@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"go-project-template/logger"
-	"go-project-template/requestid"
+	"go-project-template/internal/requestid"
 	"go-project-template/service"
 	"time"
 	"uuid"

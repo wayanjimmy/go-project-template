@@ -3,7 +3,7 @@ package repository
 import (
 	"go-project-template/logger"
 	"go-project-template/service"
-	"go-project-template/test/testutil"
+	"go-project-template/internal/testutil"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

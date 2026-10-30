@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"go-project-template/config"
-	"go-project-template/database/migrations"
+	"go-project-template/internal/database/migrations"
 	"go-project-template/logger"
 	"net/url"
 
